@@ -26,12 +26,12 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { buildUserContextString } from '../utils/userPreferences';
 import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext';
-import api from '../utils/api';
+// Removed auth dependencies for now
 
 const Journal = () => {
   const { applyAdaptiveTheme } = useTheme();
-  const { user } = useAuth();
+  // Mock user for now - no auth needed
+  const user = { id: 'test-user-id', name: 'Dervaish Abbas', email: 'dervaishabbas@gmail.com' };
   const [journalEntries, setJournalEntries] = useState([]);
   const [isWriting, setIsWriting] = useState(false);
   const [newEntry, setNewEntry] = useState('');
@@ -43,58 +43,22 @@ const Journal = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [showChatbotButton, setShowChatbotButton] = useState(false);
 
-  // Load journal entries from backend API with improved fallback
+  // Load journal entries from localStorage only
   useEffect(() => {
-    const loadJournalEntries = async () => {
-      // Always try localStorage first for immediate loading
-      const savedEntries = localStorage.getItem('neurocompanion-journal');
-      if (savedEntries) {
-        try {
-          const parsedEntries = JSON.parse(savedEntries);
-          setJournalEntries(parsedEntries);
-          console.log('Loaded journal entries from localStorage:', parsedEntries.length);
-        } catch (parseError) {
-          console.error('Error parsing saved entries:', parseError);
+    const loadJournalEntries = () => {
+      try {
+        const savedEntries = localStorage.getItem('neurocompanion-journal');
+        if (savedEntries) {
+          setJournalEntries(JSON.parse(savedEntries));
         }
-      }
-      
-      // Then try backend if user is available
-      if (user?.id) {
-        try {
-          const response = await api.get(`/journal/${user.id}`);
-          if (response.data.success) {
-            const backendEntries = response.data.data.entries || [];
-            setJournalEntries(backendEntries);
-            // Update localStorage with backend data
-            localStorage.setItem('neurocompanion-journal', JSON.stringify(backendEntries));
-            console.log('Loaded journal entries from backend:', backendEntries.length);
-          }
-        } catch (error) {
-          console.error('Error loading journal entries from backend:', error);
-          // Keep using localStorage data if backend fails
-        }
+      } catch (error) {
+        console.error('Error loading journal entries:', error);
+        setJournalEntries([]);
       }
     };
 
-    // Load immediately and also set a timeout to ensure it loads
     loadJournalEntries();
-    
-    // Fallback timeout to ensure data loads even if everything fails
-    const timeoutId = setTimeout(() => {
-      if (journalEntries.length === 0) {
-        const fallbackEntries = localStorage.getItem('neurocompanion-journal');
-        if (fallbackEntries) {
-          try {
-            setJournalEntries(JSON.parse(fallbackEntries));
-          } catch (e) {
-            console.error('Fallback loading failed:', e);
-          }
-        }
-      }
-    }, 1000);
-
-    return () => clearTimeout(timeoutId);
-  }, [user?.id]);
+  }, []);
 
   // Save journal entries to localStorage
   const saveEntries = (entries) => {
@@ -323,81 +287,37 @@ Respond in ${userLanguage} language only. Be a caring friend.`;
           tags: []
         };
 
-        // Try to save to backend first
-        try {
-          const response = await api.post('/journal/create', entryData);
-          
-          if (response.data.success) {
-            const savedEntry = response.data.data;
-            const entry = {
-              id: savedEntry._id,
-              content: savedEntry.content,
-              timestamp: savedEntry.createdAt,
-              mood: savedEntry.emotion,
-              language: savedEntry.language,
-              wordCount: savedEntry.content.split(' ').length,
-              emotionConfidence: savedEntry.emotionConfidence
-            };
+        // Save to localStorage only
+        const entry = {
+          id: Date.now(),
+          content: newEntry.trim(),
+          timestamp: new Date().toISOString(),
+          mood: analysis.emotion,
+          language: analysis.language,
+          wordCount: newEntry.trim().split(' ').length,
+          emotionConfidence: Math.random() * 0.3 + 0.7
+        };
 
-            const updatedEntries = [entry, ...journalEntries];
-            setJournalEntries(updatedEntries);
-            setNewEntry('');
-            setIsWriting(false);
-            
-            // Show chatbot button if emotion is negative
-            if (needsSupport(analysis.emotion)) {
-              console.log('Negative emotion detected, showing chatbot button');
-              
-              // Apply adaptive theme based on emotion
-              console.log('🎨 Applying adaptive theme for emotion:', analysis.emotion);
-              applyAdaptiveTheme(analysis.emotion);
-              
-              setTimeout(() => {
-                setShowChatbotButton(true);
-                // Store the detected language for chatbot responses
-                localStorage.setItem('neurocompanion-user-language', analysis.language);
-              }, 2000);
-            } else {
-              console.log('Positive/neutral emotion, no chatbot needed');
-            }
-          } else {
-            throw new Error(response.data.message || 'Failed to save entry');
-          }
-        } catch (apiError) {
-          console.error('API save failed, falling back to local storage:', apiError);
+        const updatedEntries = [entry, ...journalEntries];
+        saveEntries(updatedEntries);
+        setNewEntry('');
+        setIsWriting(false);
+        
+        // Show chatbot button if emotion is negative
+        if (needsSupport(analysis.emotion)) {
+          console.log('Negative emotion detected, showing chatbot button');
           
-          // Fallback to local storage
-          const entry = {
-            id: Date.now(),
-            content: newEntry.trim(),
-            timestamp: new Date().toISOString(),
-            mood: analysis.emotion,
-            language: analysis.language,
-            wordCount: newEntry.trim().split(' ').length,
-            emotionConfidence: Math.random() * 0.3 + 0.7
-          };
-
-          const updatedEntries = [entry, ...journalEntries];
-          saveEntries(updatedEntries);
-          setNewEntry('');
-          setIsWriting(false);
+          // Apply adaptive theme based on emotion
+          console.log('🎨 Applying adaptive theme for emotion:', analysis.emotion);
+          applyAdaptiveTheme(analysis.emotion);
           
-          // Show chatbot button if emotion is negative
-          if (needsSupport(analysis.emotion)) {
-            console.log('Negative emotion detected, showing chatbot button');
-            
-            // Apply adaptive theme based on emotion
-            console.log('🎨 Applying adaptive theme for emotion:', analysis.emotion);
-            applyAdaptiveTheme(analysis.emotion);
-            
-            setTimeout(() => {
-              setShowChatbotButton(true);
-              // Store the detected language for chatbot responses
-              localStorage.setItem('neurocompanion-user-language', analysis.language);
-            }, 2000);
-          } else {
-            console.log('Positive/neutral emotion, no chatbot needed');
-          }
+          setTimeout(() => {
+            setShowChatbotButton(true);
+            // Store the detected language for chatbot responses
+            localStorage.setItem('neurocompanion-user-language', analysis.language);
+          }, 2000);
+        } else {
+          console.log('Positive/neutral emotion, no chatbot needed');
         }
       } catch (error) {
         console.error('Error analyzing emotion:', error);
@@ -480,6 +400,12 @@ Respond in ${userLanguage} language only. Be a caring friend.`;
   const handleDeleteEntry = (entryId) => {
     const updatedEntries = journalEntries.filter(entry => entry.id !== entryId);
     saveEntries(updatedEntries);
+  };
+
+  const handleEditEntry = (entry) => {
+    setEditingEntry(entry);
+    setNewEntry(entry.content);
+    setIsWriting(true);
   };
 
   const handleChatbotSend = async () => {
