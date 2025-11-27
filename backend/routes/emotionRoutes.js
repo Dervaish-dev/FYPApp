@@ -35,7 +35,10 @@ router.post("/analyze", upload.single("image"), async (req, res) => {
       return res.status(400).json({ error: "No image file provided" });
     }
 
-    const apiKey = "AIzaSyCdXfMReLRX-hyc20BZ7wrO0Cw4mvVUJR0";
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "Gemini API key not configured" });
+    }
     const imagePath = req.file.path;
     
     // Read the uploaded image file

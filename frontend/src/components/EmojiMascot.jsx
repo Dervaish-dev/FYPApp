@@ -38,7 +38,13 @@ const EmojiMascot = () => {
 
       const randomPrompt = prompts[Math.floor(Math.random() * prompts.length)];
       
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-lite:generateContent?key=AIzaSyCdXfMReLRX-hyc20BZ7wrO0Cw4mvVUJR0', {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        console.error('Gemini API key not configured');
+        return 'Stay positive and keep moving forward! 💪';
+      }
+      
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-lite:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

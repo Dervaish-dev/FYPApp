@@ -92,7 +92,11 @@ const VoiceAssistant = () => {
   }, []);
 
   const getTherapeuticResponse = async (userMessage) => {
-    const apiKey = "AIzaSyCdXfMReLRX-hyc20BZ7wrO0Cw4mvVUJR0";
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('Gemini API key not configured');
+      return "I'm sorry, but the AI service is not properly configured. Please contact support.";
+    }
     
     // Enhanced therapeutic prompt
     const therapeuticPrompt = `You are Dr. Sarah, a compassionate and experienced mental health therapist and doctor. The user has shared: "${userMessage}"

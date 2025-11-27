@@ -68,7 +68,11 @@ const Journal = () => {
 
   // AI Emotion Analysis using Gemini API with language detection
   const analyzeEmotion = async (text) => {
-    const apiKey = "AIzaSyCdXfMReLRX-hyc20BZ7wrO0Cw4mvVUJR0";
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('Gemini API key not configured');
+      return { language: 'english', emotion: 'neutral' };
+    }
     
     // First check for critical negative keywords - bypass AI if found
     const lowerText = text.toLowerCase();
@@ -221,7 +225,11 @@ Respond with ONLY this JSON format:
 
   // Get multilingual chatbot response
   const getChatbotResponse = async (userMessage, userLanguage = 'english') => {
-    const apiKey = "AIzaSyCdXfMReLRX-hyc20BZ7wrO0Cw4mvVUJR0";
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('Gemini API key not configured');
+      return 'I understand you might be going through a difficult time. Remember, it\'s okay to feel this way, and you\'re not alone.';
+    }
     
     const prompt = `You are a caring friend chatbot. The user is chatting with you in ${userLanguage}. Respond in the SAME language they are using. Be supportive, empathetic, and helpful. Keep responses short (1-2 sentences) and friendly.
 

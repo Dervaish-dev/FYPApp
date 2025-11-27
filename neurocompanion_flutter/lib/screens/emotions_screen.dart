@@ -6,6 +6,7 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:neurocompanion_flutter/providers/theme_provider.dart';
 import 'package:neurocompanion_flutter/bloc/bloc.dart';
 import 'package:neurocompanion_flutter/bloc/blocs.dart';
+import 'package:neurocompanion_flutter/config/api_config.dart';
 import 'dart:io';
 import 'dart:math';
 
@@ -40,13 +41,18 @@ class _EmotionsScreenState extends State<EmotionsScreen> {
   ];
 
   // Gemini AI Configuration
-  static const String _apiKey = 'AIzaSyBTNGM1Qsl_z_CX87npTkeT7Zw0c4Cfl_w';
-  late GenerativeModel _model;
+  late GenerativeModel? _model;
 
   @override
   void initState() {
     super.initState();
-    _model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: _apiKey);
+    final apiKey = ApiConfig.geminiApiKey;
+    if (apiKey.isNotEmpty) {
+      _model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: apiKey);
+    } else {
+      _model = null;
+      print('⚠️ Warning: Gemini API key not configured. Please create lib/config/api_keys.dart');
+    }
     context.read<EmotionBloc>().add(LoadEmotions());
   }
 
@@ -600,7 +606,15 @@ class _EmotionsScreenState extends State<EmotionsScreen> {
         ]),
       ];
 
-      final response = await _model.generateContent(content);
+      if (_model == null) {
+        setState(() {
+          _isAnalyzing = false;
+          _analysisResult = 'API key not configured. Please set up your Gemini API key in lib/config/api_keys.dart';
+        });
+        return;
+      }
+      
+      final response = await _model!.generateContent(content);
       final analysis = response.text ?? 'Unable to analyze image';
 
       setState(() {
