@@ -1,42 +1,12 @@
-# NeuroCompanion - Full-Stack Mental Health Companion
+# FYPApp - NeuroCompanion Mental Health Companion
 
-A comprehensive mental health companion application built with React (Vite) frontend and Node.js backend, featuring emotion recognition, task management, therapeutic voice assistant, and adaptive UI.
+A comprehensive full-stack mental health companion application featuring a **React web app**, **Flutter mobile app**, and **Node.js backend**. Built for ADHD support and general wellness, with AI-powered emotion recognition, task management, therapeutic voice assistant, and adaptive UI.
 
 ## 🏗️ Project Structure
 
 ```
-/neurocompanion
-├── /frontend  → React (Vite) + TailwindCSS + Complete UI System
-│   ├── /src
-│   │   ├── /components
-│   │   │   ├── AuthForm.jsx
-│   │   │   ├── InputField.jsx
-│   │   │   ├── Layout.jsx
-│   │   │   └── DashboardCard.jsx
-│   │   ├── /pages
-│   │   │   ├── Login.jsx
-│   │   │   ├── Register.jsx
-│   │   │   ├── Dashboard.jsx
-│   │   │   ├── Emotions.jsx
-│   │   │   ├── Tasks.jsx
-│   │   │   ├── VoiceAssistant.jsx
-│   │   │   ├── Journal.jsx
-│   │   │   ├── Analytics.jsx
-│   │   │   ├── CaregiverPortal.jsx
-│   │   │   ├── Wellness.jsx
-│   │   │   └── Settings.jsx
-│   │   ├── /context
-│   │   │   ├── AuthContext.jsx
-│   │   │   └── ThemeContext.jsx
-│   │   ├── /utils
-│   │   │   ├── api.js
-│   │   │   └── themes.js
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── package.json
-│   ├── vite.config.js
-│   └── tailwind.config.js
-├── /backend   → Express + MongoDB + AI Integration
+FYPApp/
+├── /backend          → Express + MongoDB + AI Integration
 │   ├── /config
 │   │   └── db.js
 │   ├── /controllers
@@ -49,10 +19,41 @@ A comprehensive mental health companion application built with React (Vite) fron
 │   │   ├── authRoutes.js
 │   │   ├── emotionRoutes.js
 │   │   ├── emotionHistoryRoutes.js
-│   │   └── taskRoutes.js
+│   │   ├── taskRoutes.js
+│   │   ├── journalRoutes.js
+│   │   ├── preferencesRoutes.js
+│   │   └── wellnessRoutes.js
 │   ├── server.js
 │   ├── package.json
 │   └── env.example
+├── /frontend         → React (Vite) Web Application
+│   ├── /src
+│   │   ├── /components
+│   │   ├── /pages
+│   │   ├── /context
+│   │   ├── /utils
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   ├── package.json
+│   ├── vite.config.js
+│   └── tailwind.config.js
+├── /neurocompanion_flutter  → Flutter Mobile Application
+│   ├── /lib
+│   │   ├── /bloc
+│   │   ├── /models
+│   │   ├── /providers
+│   │   ├── /screens
+│   │   ├── /services
+│   │   ├── /widgets
+│   │   └── main.dart
+│   ├── /android
+│   ├── /ios
+│   ├── /web
+│   ├── /windows
+│   ├── /linux
+│   ├── /macos
+│   ├── pubspec.yaml
+│   └── README.md
 └── README.md
 ```
 
@@ -63,11 +64,12 @@ A comprehensive mental health companion application built with React (Vite) fron
 cd backend
 npm install
 cp env.example .env
+# Edit .env with your MongoDB URI and JWT secret
 npm run dev
 ```
 Backend runs on: http://localhost:5000
 
-### 2. Frontend Setup
+### 2. Frontend (Web) Setup
 ```bash
 cd frontend
 npm install
@@ -75,12 +77,23 @@ npm run dev
 ```
 Frontend runs on: http://localhost:5556
 
-### 3. Environment Setup
+### 3. Flutter Mobile App Setup
+```bash
+cd neurocompanion_flutter
+flutter pub get
+flutter run
+```
+Or use the provided batch files:
+- Windows: `run_app.bat`
+- Setup: `setup_path.ps1`
+
+### 4. Environment Setup
 Create a `.env` file in the backend directory with:
 ```
-MONGODB_URI=mongodb+srv://dervaishabbas_db_user:w5bdJM9PsL33rz0A@cluster0.erw6pvk.mongodb.net/neurocompanion?retryWrites=true&w=majority&appName=Cluster0
-JWT_SECRET=neurocompanion_jwt_secret_key_2024_secure_random_string
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret_key
 PORT=5000
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
 ## 🛠️ Tech Stack
@@ -95,7 +108,7 @@ PORT=5000
 - **Gemini AI API** - Emotion recognition and therapeutic responses
 - **Multer** - File upload handling
 
-### Frontend
+### Frontend (Web)
 - **React (Vite)** - Fast development and building
 - **TailwindCSS** - Utility-first CSS framework
 - **Framer Motion** - Animation library
@@ -105,6 +118,15 @@ PORT=5000
 - **@dnd-kit** - Drag and drop functionality
 - **Recharts** - Data visualization
 - **React Toastify** - Notifications
+
+### Mobile App (Flutter)
+- **Flutter** - Cross-platform mobile framework
+- **Flutter BLoC** - State management
+- **Provider** - Dependency injection
+- **HTTP** - API communication
+- **Shared Preferences** - Local storage
+- **Image Picker** - Photo selection
+- **Flutter Local Notifications** - Push notifications
 
 ## 📋 Core Features
 
@@ -227,10 +249,16 @@ npm install express mongoose dotenv cors bcryptjs jsonwebtoken multer node-fetch
 npm install -D nodemon
 ```
 
-### Frontend Dependencies
+### Frontend (Web) Dependencies
 ```bash
 npm install axios react-router-dom tailwindcss lucide-react framer-motion @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities recharts react-toastify
 npx tailwindcss init -p
+```
+
+### Flutter Mobile App Dependencies
+```bash
+cd neurocompanion_flutter
+flutter pub get
 ```
 
 ## 🔧 Development Commands
@@ -241,11 +269,20 @@ npm run dev    # Start development server with nodemon
 npm start      # Start production server
 ```
 
-### Frontend
+### Frontend (Web)
 ```bash
 npm run dev    # Start Vite development server
 npm run build  # Build for production
 npm run preview # Preview production build
+```
+
+### Flutter Mobile App
+```bash
+flutter run                    # Run on connected device/emulator
+flutter run -d chrome          # Run on web
+flutter build apk             # Build Android APK
+flutter build ios             # Build iOS app
+flutter build web             # Build web version
 ```
 
 ## 🌟 Key Features Implemented
@@ -281,14 +318,40 @@ The application is production-ready with:
 - **Confidence Scoring** - AI accuracy metrics
 - **Adaptive Learning** - Context-aware responses
 
-## 📱 Mobile Responsive
+## 📱 Mobile Applications
 
+### Flutter Mobile App
+- **Cross-Platform** - iOS, Android, Web, Windows, macOS, Linux
+- **Native Performance** - Smooth animations and interactions
+- **Offline Support** - Local data caching
+- **Push Notifications** - Task reminders and wellness alerts
+- **Camera Integration** - Direct photo capture for emotion analysis
+- **Adaptive Themes** - Same theme system as web app
+- **BLoC Architecture** - Clean state management
+
+### Web App Mobile Responsive
 - **Mobile-First Design** - Optimized for all devices
 - **Touch Interactions** - Drag & drop on mobile
 - **Responsive Charts** - Adaptive data visualization
 - **Mobile Navigation** - Bottom navigation bar
 - **Touch-Friendly UI** - Large buttons and inputs
 
+## 🎯 Platform Support
+
+- ✅ **Web Application** - React/Vite (Desktop & Mobile browsers)
+- ✅ **Android App** - Native Flutter application
+- ✅ **iOS App** - Native Flutter application
+- ✅ **Windows Desktop** - Flutter desktop support
+- ✅ **macOS Desktop** - Flutter desktop support
+- ✅ **Linux Desktop** - Flutter desktop support
+- ✅ **Web (PWA)** - Progressive Web App support
+
+## 🔗 Repository
+
+**GitHub:** [https://github.com/Dervaish-dev/FYPApp](https://github.com/Dervaish-dev/FYPApp)
+
 ---
 
 **Developed by Dervaish Ahmed** - A comprehensive mental health companion for ADHD and general wellness support.
+
+**Final Year Project (FYP)** - Full-stack application with web and mobile clients.
