@@ -2,7 +2,11 @@ import fetch from 'node-fetch';
 
 const testEmotionDetection = async () => {
   try {
-    const apiKey = "AIzaSyCdXfMReLRX-hyc20BZ7wrO0Cw4mvVUJR0";
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('❌ GEMINI_API_KEY not set in environment variables');
+      return;
+    }
     
     console.log('Testing improved emotion detection...');
     

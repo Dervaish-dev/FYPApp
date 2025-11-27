@@ -2,7 +2,12 @@ import fetch from 'node-fetch';
 
 const testGeminiAPI = async () => {
   try {
-    const apiKey = "AIzaSyCdXfMReLRX-hyc20BZ7wrO0Cw4mvVUJR0";
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('❌ GEMINI_API_KEY not set in environment variables');
+      console.log('Please set GEMINI_API_KEY in your .env file');
+      return;
+    }
     
     console.log('Testing Gemini API...');
     
