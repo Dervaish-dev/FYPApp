@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:neurocompanion_flutter/providers/theme_provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:neurocompanion_flutter/bloc/blocs.dart';
+import 'package:neurocompanion_flutter/bloc/bloc.dart';
+import 'package:neurocompanion_flutter/services/preferences_service.dart';
+import 'package:neurocompanion_flutter/screens/forgot_password_screen.dart';
+import 'package:neurocompanion_flutter/screens/notification_preferences_screen.dart';
+import 'package:neurocompanion_flutter/screens/offline_status_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,6 +20,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  bool _twoFactorEnabled = false;
 
   @override
   void initState() {
@@ -25,6 +33,107 @@ class _SettingsScreenState extends State<SettingsScreen>
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
     _animationController.forward();
+
+    // Defer until after first build so context.read works reliably.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPreferences();
+    });
+  }
+
+  String? _currentUserId() {
+    final state = context.read<AuthBloc>().state;
+    if (state is AuthSuccess) {
+      return state.user.id;
+    }
+    return null;
+  }
+
+  String? _toBackendThemeKey(String themeKey) {
+    // Backend enum: ocean, coral, dark, mint, lavender, golden
+    switch (themeKey) {
+      case 'ocean':
+      case 'coral':
+      case 'mint':
+      case 'lavender':
+      case 'golden':
+        return themeKey;
+      case 'midnight':
+        return 'dark';
+      default:
+        // emotion-based themes should remain local-only
+        return null;
+    }
+  }
+
+  String _fromBackendThemeKey(String backendTheme) {
+    switch (backendTheme) {
+      case 'dark':
+        return 'midnight';
+      case 'ocean':
+      case 'coral':
+      case 'mint':
+      case 'lavender':
+      case 'golden':
+        return backendTheme;
+      default:
+        return 'ocean';
+    }
+  }
+
+  Future<void> _loadPreferences() async {
+    final authBloc = context.read<AuthBloc>();
+    final prefsService = context.read<PreferencesService>();
+    final themeProvider = context.read<ThemeProvider>();
+
+    final state = authBloc.state;
+    final userId = state is AuthSuccess ? state.user.id : null;
+    if (userId == null || userId.isEmpty) {
+      return;
+    }
+
+    try {
+      final prefs = await prefsService.fetch(userId);
+      final mappedTheme = _fromBackendThemeKey(prefs.defaultTheme);
+      await themeProvider.setTheme(mappedTheme);
+      await themeProvider.setAdaptiveMode(prefs.adaptiveMode);
+
+      if (mounted) {
+        setState(() {
+          // Notification preferences are now managed in separate screen
+        });
+      }
+
+      // Load 2FA status
+      _loadTwoFactorStatus();
+    } catch (_) {
+      // Best-effort: keep local defaults if backend fetch fails.
+    }
+  }
+
+  Future<void> _loadTwoFactorStatus() async {
+    final state = context.read<AuthBloc>().state;
+    if (state is AuthSuccess) {
+      setState(() {
+        _twoFactorEnabled = state.user.twoFactorEnabled ?? false;
+      });
+    }
+  }
+
+  Future<void> _savePreferences({
+    String? themeKey,
+    bool? adaptiveMode,
+    bool? notificationsEnabled,
+  }) async {
+    final userId = _currentUserId();
+    if (userId == null || userId.isEmpty) return;
+
+    final prefsService = context.read<PreferencesService>();
+    await prefsService.upsert(
+      userId: userId,
+      defaultTheme: themeKey,
+      adaptiveMode: adaptiveMode,
+      notificationsEnabled: notificationsEnabled,
+    );
   }
 
   @override
@@ -144,8 +253,12 @@ class _SettingsScreenState extends State<SettingsScreen>
 
               return GestureDetector(
                 onTap: () {
-                  print('Theme selected: $themeKey'); // Debug print
                   themeProvider.setTheme(themeKey);
+
+                  final backendTheme = _toBackendThemeKey(themeKey);
+                  if (backendTheme != null) {
+                    _savePreferences(themeKey: backendTheme);
+                  }
                 },
                 child: Stack(
                   children: [
@@ -346,6 +459,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             value: themeProvider.adaptiveMode,
             onChanged: (value) {
               themeProvider.setAdaptiveMode(value);
+              _savePreferences(adaptiveMode: value);
             },
             activeColor: theme.primary,
           ),
@@ -386,20 +500,97 @@ class _SettingsScreenState extends State<SettingsScreen>
           ListTile(
             leading: Icon(Icons.notifications, color: theme.primary),
             title: Text(
-              'Push Notifications',
+              'Notification Preferences',
               style: TextStyle(color: theme.text),
             ),
             subtitle: Text(
-              'Receive reminders and updates',
+              'Manage notification categories and preferences',
               style: TextStyle(color: theme.text.withOpacity(0.7)),
             ),
-            trailing: Switch(
-              value: true,
-              onChanged: (value) {
-                print('Notifications toggle: $value'); // Debug print
-              },
-              activeColor: theme.primary,
+            trailing: Icon(
+              Icons.arrow_forward_ios,
+              color: theme.text.withOpacity(0.5),
             ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationPreferencesScreen(),
+                ),
+              );
+            },
+          ),
+
+          const Divider(),
+
+          // Two-Factor Authentication
+          BlocListener<AuthBloc, AuthState>(
+            listener: (context, state) {
+              if (state is Auth2FAEnabled) {
+                setState(() {
+                  _twoFactorEnabled = state.enabled;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      state.enabled
+                          ? '2FA enabled successfully!'
+                          : '2FA disabled successfully',
+                    ),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } else if (state is AuthFailure) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.message),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: ListTile(
+              leading: Icon(Icons.lock, color: theme.primary),
+              title: Text(
+                'Two-Factor Authentication',
+                style: TextStyle(color: theme.text),
+              ),
+              subtitle: Text(
+                'Add an extra layer of security',
+                style: TextStyle(color: theme.text.withOpacity(0.7)),
+              ),
+              trailing: Switch(
+                value: _twoFactorEnabled,
+                onChanged: (value) {
+                  context.read<AuthBloc>().add(Toggle2FARequested());
+                },
+                activeColor: theme.primary,
+              ),
+            ),
+          ),
+
+          const Divider(),
+
+          // Reset Password
+          ListTile(
+            leading: Icon(Icons.key, color: theme.primary),
+            title: Text('Reset Password', style: TextStyle(color: theme.text)),
+            subtitle: Text(
+              'Change your account password',
+              style: TextStyle(color: theme.text.withOpacity(0.7)),
+            ),
+            trailing: Icon(
+              Icons.arrow_forward_ios,
+              color: theme.text.withOpacity(0.5),
+            ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ForgotPasswordScreen(),
+                ),
+              );
+            },
           ),
 
           const Divider(),
@@ -418,6 +609,30 @@ class _SettingsScreenState extends State<SettingsScreen>
             ),
             onTap: () {
               print('Data privacy tapped'); // Debug print
+            },
+          ),
+
+          const Divider(),
+
+          // Offline & Sync
+          ListTile(
+            leading: Icon(Icons.cloud_sync, color: theme.primary),
+            title: Text('Offline & Sync', style: TextStyle(color: theme.text)),
+            subtitle: Text(
+              'Manage offline data and synchronization',
+              style: TextStyle(color: theme.text.withOpacity(0.7)),
+            ),
+            trailing: Icon(
+              Icons.arrow_forward_ios,
+              color: theme.text.withOpacity(0.5),
+            ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const OfflineStatusScreen(),
+                ),
+              );
             },
           ),
         ],

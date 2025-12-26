@@ -46,6 +46,56 @@ class AuthStatusChanged extends AuthEvent {
   List<Object?> get props => [user];
 }
 
+class AppStarted extends AuthEvent {
+  const AppStarted();
+}
+
+class Verify2FARequested extends AuthEvent {
+  final String userId;
+  final String otp;
+
+  const Verify2FARequested({required this.userId, required this.otp});
+
+  @override
+  List<Object?> get props => [userId, otp];
+}
+
+class Toggle2FARequested extends AuthEvent {}
+
+class ForgotPasswordRequested extends AuthEvent {
+  final String email;
+
+  const ForgotPasswordRequested({required this.email});
+
+  @override
+  List<Object?> get props => [email];
+}
+
+class VerifyResetOTPRequested extends AuthEvent {
+  final String email;
+  final String otp;
+
+  const VerifyResetOTPRequested({required this.email, required this.otp});
+
+  @override
+  List<Object?> get props => [email, otp];
+}
+
+class ResetPasswordRequested extends AuthEvent {
+  final String email;
+  final String otp;
+  final String newPassword;
+
+  const ResetPasswordRequested({
+    required this.email,
+    required this.otp,
+    required this.newPassword,
+  });
+
+  @override
+  List<Object?> get props => [email, otp, newPassword];
+}
+
 // Authentication States
 abstract class AuthState extends Equatable {
   const AuthState();
@@ -71,6 +121,60 @@ class AuthFailure extends AuthState {
   final String message;
 
   const AuthFailure({required this.message});
+
+  @override
+  List<Object?> get props => [message];
+}
+
+class Auth2FARequired extends AuthState {
+  final String userId;
+  final String message;
+
+  const Auth2FARequired({required this.userId, this.message = '2FA code sent to your email'});
+
+  @override
+  List<Object?> get props => [userId, message];
+}
+
+class Auth2FAEnabled extends AuthState {
+  final bool enabled;
+  final String message;
+
+  const Auth2FAEnabled({required this.enabled, required this.message});
+
+  @override
+  List<Object?> get props => [enabled, message];
+}
+
+class PasswordResetOTPSent extends AuthState {
+  final String email;
+  final String message;
+
+  const PasswordResetOTPSent({required this.email, this.message = 'Reset code sent to your email'});
+
+  @override
+  List<Object?> get props => [email, message];
+}
+
+class PasswordResetOTPVerified extends AuthState {
+  final String email;
+  final String otp;
+  final String message;
+
+  const PasswordResetOTPVerified({
+    required this.email,
+    required this.otp,
+    this.message = 'Code verified. Please enter new password',
+  });
+
+  @override
+  List<Object?> get props => [email, otp, message];
+}
+
+class PasswordResetSuccess extends AuthState {
+  final String message;
+
+  const PasswordResetSuccess({this.message = 'Password reset successfully'});
 
   @override
   List<Object?> get props => [message];
@@ -103,6 +207,15 @@ class UpdateTaskStatus extends TaskEvent {
 
   @override
   List<Object?> get props => [taskId, status];
+}
+
+class UpdateTask extends TaskEvent {
+  final Task task;
+
+  const UpdateTask({required this.task});
+
+  @override
+  List<Object?> get props => [task];
 }
 
 class DeleteTask extends TaskEvent {
@@ -213,6 +326,23 @@ abstract class JournalEvent extends Equatable {
 }
 
 class LoadJournalEntries extends JournalEvent {}
+
+class CreateJournalEntry extends JournalEvent {
+  final String userId;
+  final String content;
+  final int mood;
+  final List<String> tags;
+
+  const CreateJournalEntry({
+    required this.userId,
+    required this.content,
+    required this.mood,
+    required this.tags,
+  });
+
+  @override
+  List<Object?> get props => [userId, content, mood, tags];
+}
 
 class AddJournalEntry extends JournalEvent {
   final String content;

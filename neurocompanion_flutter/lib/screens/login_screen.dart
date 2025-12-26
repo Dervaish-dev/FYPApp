@@ -6,6 +6,12 @@ import 'package:neurocompanion_flutter/bloc/bloc.dart';
 import 'package:neurocompanion_flutter/bloc/blocs.dart';
 import 'package:neurocompanion_flutter/screens/register_screen.dart';
 import 'package:neurocompanion_flutter/screens/main_layout.dart';
+import 'package:neurocompanion_flutter/screens/verify_2fa_screen.dart';
+import 'package:neurocompanion_flutter/screens/forgot_password_screen.dart';
+import 'package:neurocompanion_flutter/screens/caregiver_login_screen.dart';
+import 'package:neurocompanion_flutter/screens/caregiver_layout_screen.dart';
+import 'package:neurocompanion_flutter/services/api_client.dart';
+import 'package:neurocompanion_flutter/services/token_store.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  String _userType = 'patient'; // 'patient' or 'caregiver'
 
   @override
   void dispose() {
@@ -29,12 +36,93 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _handleLogin() {
     if (_formKey.currentState!.validate()) {
-      context.read<AuthBloc>().add(
-        LoginRequested(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        ),
-      );
+      print('🔐 [AUTH] Login attempt for: ${_emailController.text.trim()}');
+      
+      if (_userType == 'caregiver') {
+        // Handle caregiver login inline
+        _handleCaregiverLogin();
+      } else {
+        // Patient login
+        context.read<AuthBloc>().add(
+          LoginRequested(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleCaregiverLogin() async {
+    setState(() {
+      // Show loading state
+    });
+
+    try {
+      final apiClient = context.read<ApiClient>();
+      
+      print('🔐 [CAREGIVER LOGIN] Login attempt for: ${_emailController.text.trim()}');
+      
+      final response = await apiClient.post('/caregiver/login', body: {
+        'email': _emailController.text.trim(),
+        'password': _passwordController.text,
+      }, authenticated: false);
+
+      print('✅ [CAREGIVER LOGIN] Login response received');
+
+      if (response['success'] == true) {
+        // Check if 2FA is required
+        if (response['requires2FA'] == true) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('2FA for caregivers - Please use the full caregiver login screen'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+            // Navigate to full caregiver login screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CaregiverLoginScreen(),
+              ),
+            );
+          }
+          return;
+        }
+
+        // Store caregiver token
+        final token = response['token'] as String?;
+        if (token != null) {
+          await SharedPrefsTokenStore().writeToken(token);
+          print('✅ [CAREGIVER LOGIN] Token stored');
+        }
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CaregiverLayoutScreen(),
+            ),
+          );
+        }
+      } else {
+        throw Exception(response['message'] ?? 'Login failed');
+      }
+    } catch (e) {
+      print('❌ [CAREGIVER LOGIN] Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.toString().contains('Invalid credentials')
+                  ? 'Invalid email or password'
+                  : 'Login failed. Please try again.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -88,7 +176,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Sign in to your NeuroCompanion account',
+                        _userType == 'patient'
+                            ? 'Sign in to your NeuroCompanion account'
+                            : 'Sign in to support your patients',
                         style: TextStyle(
                           fontSize: 16,
                           color: theme.text.withOpacity(0.7),
@@ -97,17 +187,128 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 40),
 
+                      // User Type Selector
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: theme.card,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.border),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _userType = 'patient';
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: _userType == 'patient'
+                                        ? theme.primary
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.person_outline,
+                                        size: 20,
+                                        color: _userType == 'patient'
+                                            ? Colors.white
+                                            : theme.text.withOpacity(0.6),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Patient',
+                                        style: TextStyle(
+                                          color: _userType == 'patient'
+                                              ? Colors.white
+                                              : theme.text.withOpacity(0.6),
+                                          fontWeight: _userType == 'patient'
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _userType = 'caregiver';
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: _userType == 'caregiver'
+                                        ? theme.primary
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.people_outline,
+                                        size: 20,
+                                        color: _userType == 'caregiver'
+                                            ? Colors.white
+                                            : theme.text.withOpacity(0.6),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Caregiver',
+                                        style: TextStyle(
+                                          color: _userType == 'caregiver'
+                                              ? Colors.white
+                                              : theme.text.withOpacity(0.6),
+                                          fontWeight: _userType == 'caregiver'
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
                       // Login Form
                       BlocListener<AuthBloc, AuthState>(
                         listener: (context, state) {
                           if (state is AuthSuccess) {
+                            print('✅ [AUTH] Login successful for: ${state.user.email}');
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const MainLayout(),
                               ),
                             );
+                          } else if (state is Auth2FARequired) {
+                            print('🔐 [AUTH] 2FA required for user: ${state.userId}');
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => Verify2FAScreen(userId: state.userId),
+                              ),
+                            );
                           } else if (state is AuthFailure) {
+                            print('❌ [AUTH] Login failed: ${state.message}');
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(state.message),
@@ -200,6 +401,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                     return null;
                                   },
                                 ),
+                                const SizedBox(height: 16),
+
+                                // Forgot Password Link
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => const ForgotPasswordScreen(),
+                                        ),
+                                      );
+                                    },
+                                    child: Text(
+                                      'Forgot password?',
+                                      style: TextStyle(
+                                        color: theme.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                                 const SizedBox(height: 24),
 
                                 // Login Button
@@ -255,12 +479,22 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           GestureDetector(
                             onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const RegisterScreen(),
-                                ),
-                              );
+                              if (_userType == 'patient') {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const RegisterScreen(),
+                                  ),
+                                );
+                              } else {
+                                // Navigate to caregiver registration
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Caregiver registration - Coming soon'),
+                                    backgroundColor: theme.primary,
+                                  ),
+                                );
+                              }
                             },
                             child: Text(
                               'Sign up',

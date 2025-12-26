@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:neurocompanion_flutter/providers/theme_provider.dart';
+import 'package:neurocompanion_flutter/bloc/bloc.dart';
+import 'package:neurocompanion_flutter/bloc/blocs.dart';
 import 'package:neurocompanion_flutter/screens/login_screen.dart';
-import 'package:neurocompanion_flutter/screens/main_layout.dart';
+import 'package:neurocompanion_flutter/screens/onboarding_screen.dart';
+import 'package:neurocompanion_flutter/services/api_exceptions.dart';
+import 'package:neurocompanion_flutter/services/invite_service.dart';
+import 'package:neurocompanion_flutter/services/services.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -13,40 +18,133 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _codeController = TextEditingController();
   final _emailController = TextEditingController();
+  final _otpController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  int _step = 0;
+  String? _maskedEmail;
+  String? _claimToken;
+
   bool _obscurePassword = true;
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _codeController.dispose();
     _emailController.dispose();
+    _otpController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  void _handleRegister() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
+  Future<void> _next() async {
+    if (!_formKey.currentState!.validate()) return;
 
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 2));
+    final inviteService = context.read<InviteService>();
+    final authService = context.read<AuthService>();
 
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      if (_step == 0) {
+        final result = await inviteService.lookupCode(_codeController.text);
+        setState(() {
+          _maskedEmail = result.maskedEmail;
+          _step = 1;
+        });
+      } else if (_step == 1) {
+        final result = await inviteService.sendOtp(
+          code: _codeController.text,
+          email: _emailController.text,
+        );
+        setState(() {
+          _maskedEmail = result.maskedEmail;
+          _step = 2;
+        });
+      } else if (_step == 2) {
+        final result = await inviteService.verifyOtp(
+          code: _codeController.text,
+          email: _emailController.text,
+          otp: _otpController.text,
+        );
+        if (result.claimToken.isEmpty) {
+          throw const ApiException(message: 'Missing claim token');
+        }
+        setState(() {
+          _claimToken = result.claimToken;
+          _step = 3;
+        });
+      } else if (_step == 3) {
+        final user = await authService.finalizeInviteSignup(
+          claimToken: _claimToken ?? '',
+          password: _passwordController.text,
+        );
+
+        if (!mounted) return;
+        context.read<AuthBloc>().add(AuthStatusChanged(user: user));
+
+        // Navigate to onboarding flow
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+        );
+      }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      final retryAfter = (e.details is Map && (e.details as Map).containsKey('retryAfterSeconds'))
+          ? (e.details as Map)['retryAfterSeconds']
+          : null;
+      final extra = retryAfter != null ? ' (try again in ${retryAfter}s)' : '';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${e.message}$extra'), backgroundColor: Colors.red),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
-
-        // Navigate to main app
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MainLayout()),
-        );
       }
+    }
+  }
+
+  String _primaryButtonText() {
+    switch (_step) {
+      case 0:
+        return 'Verify Invite Code';
+      case 1:
+        return 'Send OTP';
+      case 2:
+        return 'Verify OTP';
+      case 3:
+        return 'Create Account';
+      default:
+        return 'Continue';
+    }
+  }
+
+  String _stepTitle() {
+    switch (_step) {
+      case 0:
+        return 'Enter Invite Code';
+      case 1:
+        return 'Confirm Email';
+      case 2:
+        return 'Enter OTP';
+      case 3:
+        return 'Set Password';
+      default:
+        return 'Join';
     }
   }
 
@@ -100,13 +198,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Create your account and start your journey',
+                        'Invite-only signup. Use your caregiver code.',
                         style: TextStyle(
                           fontSize: 16,
                           color: theme.text.withOpacity(0.7),
                         ),
                         textAlign: TextAlign.center,
                       ),
+                      if (_maskedEmail != null && _maskedEmail!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Invite email: $_maskedEmail',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: theme.text.withOpacity(0.7),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                       const SizedBox(height: 40),
 
                       // Registration Form
@@ -128,94 +237,162 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           key: _formKey,
                           child: Column(
                             children: [
-                              // Name Field
-                              TextFormField(
-                                controller: _nameController,
-                                textInputAction: TextInputAction.next,
-                                style: TextStyle(color: theme.text),
-                                decoration: InputDecoration(
-                                  labelText: 'Full Name',
-                                  hintText: 'Enter your full name',
-                                  prefixIcon: Icon(
-                                    Icons.person_outlined,
-                                    color: theme.text.withOpacity(0.7),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  _stepTitle(),
+                                  style: TextStyle(
+                                    color: theme.text,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Name is required';
-                                  }
-                                  return null;
-                                },
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
 
-                              // Email Field
-                              TextFormField(
-                                controller: _emailController,
-                                keyboardType: TextInputType.emailAddress,
-                                textInputAction: TextInputAction.next,
-                                style: TextStyle(color: theme.text),
-                                decoration: InputDecoration(
-                                  labelText: 'Email Address',
-                                  hintText: 'Enter your email',
-                                  prefixIcon: Icon(
-                                    Icons.email_outlined,
-                                    color: theme.text.withOpacity(0.7),
-                                  ),
-                                ),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Email is required';
-                                  }
-                                  if (!RegExp(
-                                    r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                                  ).hasMatch(value)) {
-                                    return 'Please enter a valid email';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 16),
-
-                              // Password Field
-                              TextFormField(
-                                controller: _passwordController,
-                                obscureText: _obscurePassword,
-                                textInputAction: TextInputAction.done,
-                                onFieldSubmitted: (_) => _handleRegister(),
-                                style: TextStyle(color: theme.text),
-                                decoration: InputDecoration(
-                                  labelText: 'Password',
-                                  hintText: 'Enter your password',
-                                  prefixIcon: Icon(
-                                    Icons.lock_outlined,
-                                    color: theme.text.withOpacity(0.7),
-                                  ),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? Icons.visibility_off
-                                          : Icons.visibility,
+                              if (_step == 0) ...[
+                                TextFormField(
+                                  controller: _codeController,
+                                  textInputAction: TextInputAction.done,
+                                  style: TextStyle(color: theme.text),
+                                  decoration: InputDecoration(
+                                    labelText: 'Invite Code',
+                                    hintText: 'e.g. ABC123',
+                                    prefixIcon: Icon(
+                                      Icons.vpn_key_outlined,
                                       color: theme.text.withOpacity(0.7),
                                     ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _obscurePassword = !_obscurePassword;
-                                      });
-                                    },
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Invite code is required';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ],
+
+                              if (_step == 1) ...[
+                                TextFormField(
+                                  controller: _codeController,
+                                  enabled: false,
+                                  style: TextStyle(color: theme.text),
+                                  decoration: InputDecoration(
+                                    labelText: 'Invite Code',
+                                    prefixIcon: Icon(
+                                      Icons.vpn_key_outlined,
+                                      color: theme.text.withOpacity(0.7),
+                                    ),
                                   ),
                                 ),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Password is required';
-                                  }
-                                  if (value.length < 6) {
-                                    return 'Password must be at least 6 characters';
-                                  }
-                                  return null;
-                                },
-                              ),
+                                const SizedBox(height: 16),
+                                TextFormField(
+                                  controller: _emailController,
+                                  keyboardType: TextInputType.emailAddress,
+                                  textInputAction: TextInputAction.done,
+                                  style: TextStyle(color: theme.text),
+                                  decoration: InputDecoration(
+                                    labelText: 'Email Address',
+                                    hintText: 'Must match invite email',
+                                    prefixIcon: Icon(
+                                      Icons.email_outlined,
+                                      color: theme.text.withOpacity(0.7),
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Email is required';
+                                    }
+                                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
+                                      return 'Please enter a valid email';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ],
+
+                              if (_step == 2) ...[
+                                TextFormField(
+                                  controller: _otpController,
+                                  keyboardType: TextInputType.number,
+                                  textInputAction: TextInputAction.done,
+                                  style: TextStyle(color: theme.text),
+                                  decoration: InputDecoration(
+                                    labelText: 'OTP Code',
+                                    hintText: 'Enter the code sent to your email',
+                                    prefixIcon: Icon(
+                                      Icons.verified_outlined,
+                                      color: theme.text.withOpacity(0.7),
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'OTP is required';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ],
+
+                              if (_step == 3) ...[
+                                TextFormField(
+                                  controller: _passwordController,
+                                  obscureText: _obscurePassword,
+                                  textInputAction: TextInputAction.next,
+                                  style: TextStyle(color: theme.text),
+                                  decoration: InputDecoration(
+                                    labelText: 'Password',
+                                    hintText: 'At least 8 chars, letters + numbers',
+                                    prefixIcon: Icon(
+                                      Icons.lock_outlined,
+                                      color: theme.text.withOpacity(0.7),
+                                    ),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                        color: theme.text.withOpacity(0.7),
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _obscurePassword = !_obscurePassword;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    final v = value ?? '';
+                                    if (v.isEmpty) return 'Password is required';
+                                    if (v.length < 8) {
+                                      return 'Password must be at least 8 characters';
+                                    }
+                                    if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d)').hasMatch(v)) {
+                                      return 'Password must contain letters and numbers';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                TextFormField(
+                                  controller: _confirmPasswordController,
+                                  obscureText: _obscurePassword,
+                                  textInputAction: TextInputAction.done,
+                                  onFieldSubmitted: (_) => _next(),
+                                  style: TextStyle(color: theme.text),
+                                  decoration: InputDecoration(
+                                    labelText: 'Confirm Password',
+                                    hintText: 'Re-enter your password',
+                                    prefixIcon: Icon(
+                                      Icons.lock_outline,
+                                      color: theme.text.withOpacity(0.7),
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if ((value ?? '') != _passwordController.text) {
+                                      return 'Passwords do not match';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ],
                               const SizedBox(height: 24),
 
                               // Register Button
@@ -224,7 +401,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 child: ElevatedButton(
                                   onPressed: _isLoading
                                       ? null
-                                      : _handleRegister,
+                                      : _next,
                                   child: _isLoading
                                       ? const Row(
                                           mainAxisAlignment:
@@ -242,10 +419,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                               ),
                                             ),
                                             SizedBox(width: 12),
-                                            Text('Creating account...'),
+                                            Text('Please wait...'),
                                           ],
                                         )
-                                      : const Text('Create Account'),
+                                      : Text(_primaryButtonText()),
                                 ),
                               ),
                             ],

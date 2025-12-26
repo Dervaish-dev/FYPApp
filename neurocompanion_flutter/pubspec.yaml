@@ -46,13 +46,28 @@ dependencies:
   # Additional dependencies
   http: ^1.2.2
   path_provider: ^2.1.4
+  intl: ^0.19.0
+  webview_flutter: ^4.4.2
   
-  # AI Integration
-  google_generative_ai: ^0.4.3
+  # WebSocket + Audio for Retell
+  web_socket_channel: ^2.4.0
+  record: ^5.1.0
+  just_audio: ^0.9.36
+  audio_waveforms: ^1.0.5
+  permission_handler: ^11.0.1
+  livekit_client: ^2.0.0
   
   # Notifications
   flutter_local_notifications: ^17.2.3
   timezone: ^0.9.4
+  
+  # Charts
+  fl_chart: ^0.69.2
+  
+  # Offline Support
+  connectivity_plus: ^6.0.5
+  sqflite: ^2.3.3+1
+  path: ^1.9.0
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +79,11 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+
+# Dependency overrides to fix version conflicts
+dependency_overrides:
+  record_linux: ^1.0.0
+  record_platform_interface: ^1.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

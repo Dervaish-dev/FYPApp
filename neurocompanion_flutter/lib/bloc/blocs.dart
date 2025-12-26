@@ -1,6 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:neurocompanion_flutter/bloc/bloc.dart';
 import 'package:neurocompanion_flutter/services/services.dart';
+import 'package:neurocompanion_flutter/services/database_service.dart';
+import 'package:neurocompanion_flutter/models/models.dart';
 
 // Authentication BLoC
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
@@ -9,10 +11,30 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc({required AuthService authService})
     : _authService = authService,
       super(AuthInitial()) {
+    on<AppStarted>(_onAppStarted);
     on<LoginRequested>(_onLoginRequested);
     on<RegisterRequested>(_onRegisterRequested);
     on<LogoutRequested>(_onLogoutRequested);
     on<AuthStatusChanged>(_onAuthStatusChanged);
+    on<Verify2FARequested>(_onVerify2FARequested);
+    on<Toggle2FARequested>(_onToggle2FARequested);
+    on<ForgotPasswordRequested>(_onForgotPasswordRequested);
+    on<VerifyResetOTPRequested>(_onVerifyResetOTPRequested);
+    on<ResetPasswordRequested>(_onResetPasswordRequested);
+  }
+
+  Future<void> _onAppStarted(AppStarted event, Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    try {
+      final user = await _authService.getCurrentUser();
+      if (user != null) {
+        emit(AuthSuccess(user: user));
+      } else {
+        emit(AuthInitial());
+      }
+    } catch (_) {
+      emit(AuthInitial());
+    }
   }
 
   Future<void> _onLoginRequested(
@@ -21,7 +43,24 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     try {
-      final user = await _authService.login(event.email, event.password);
+      // Clear any cached data from previous user before logging in
+      try {
+        final DatabaseService dbService = DatabaseService();
+        await dbService.clearAllData();
+      } catch (e) {
+        print('Error clearing database before login: $e');
+      }
+      
+      final response = await _authService.login(event.email, event.password);
+      
+      // Check if 2FA is required
+      if (response['requires2FA'] == true) {
+        emit(Auth2FARequired(userId: response['userId'] ?? ''));
+        return;
+      }
+      
+      // The user is already a User object, not a map
+      final user = response['user'] as User;
       emit(AuthSuccess(user: user));
     } catch (e) {
       emit(AuthFailure(message: e.toString()));
@@ -50,6 +89,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     await _authService.logout();
+    
+    // Clear all cached data from database
+    try {
+      final DatabaseService dbService = DatabaseService();
+      await dbService.clearAllData();
+    } catch (e) {
+      print('Error clearing database on logout: $e');
+    }
+    
     emit(AuthInitial());
   }
 
@@ -58,6 +106,73 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthSuccess(user: event.user!));
     } else {
       emit(AuthInitial());
+    }
+  }
+
+  Future<void> _onVerify2FARequested(
+    Verify2FARequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    try {
+      final user = await _authService.verify2FA(event.userId, event.otp);
+      emit(AuthSuccess(user: user));
+    } catch (e) {
+      emit(AuthFailure(message: e.toString()));
+    }
+  }
+
+  Future<void> _onToggle2FARequested(
+    Toggle2FARequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    try {
+      final result = await _authService.toggle2FA();
+      emit(Auth2FAEnabled(
+        enabled: result['twoFactorEnabled'] ?? false,
+        message: result['message'] ?? '2FA updated',
+      ));
+    } catch (e) {
+      emit(AuthFailure(message: e.toString()));
+    }
+  }
+
+  Future<void> _onForgotPasswordRequested(
+    ForgotPasswordRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    try {
+      await _authService.forgotPassword(event.email);
+      emit(PasswordResetOTPSent(email: event.email));
+    } catch (e) {
+      emit(AuthFailure(message: e.toString()));
+    }
+  }
+
+  Future<void> _onVerifyResetOTPRequested(
+    VerifyResetOTPRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    try {
+      await _authService.verifyResetOTP(event.email, event.otp);
+      emit(PasswordResetOTPVerified(email: event.email, otp: event.otp));
+    } catch (e) {
+      emit(AuthFailure(message: e.toString()));
+    }
+  }
+
+  Future<void> _onResetPasswordRequested(
+    ResetPasswordRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    try {
+      await _authService.resetPassword(event.email, event.otp, event.newPassword);
+      emit(const PasswordResetSuccess());
+    } catch (e) {
+      emit(AuthFailure(message: e.toString()));
     }
   }
 }
@@ -72,6 +187,7 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
     on<LoadTasks>(_onLoadTasks);
     on<AddTask>(_onAddTask);
     on<UpdateTaskStatus>(_onUpdateTaskStatus);
+    on<UpdateTask>(_onUpdateTask);
     on<DeleteTask>(_onDeleteTask);
   }
 
@@ -100,6 +216,15 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
   ) async {
     try {
       await _taskService.updateTaskStatus(event.taskId, event.status);
+      add(LoadTasks());
+    } catch (e) {
+      emit(TaskError(message: e.toString()));
+    }
+  }
+
+  Future<void> _onUpdateTask(UpdateTask event, Emitter<TaskState> emit) async {
+    try {
+      await _taskService.updateTask(event.task);
       add(LoadTasks());
     } catch (e) {
       emit(TaskError(message: e.toString()));
@@ -173,11 +298,16 @@ class EmotionBloc extends Bloc<EmotionEvent, EmotionState> {
 // Journal BLoC
 class JournalBloc extends Bloc<JournalEvent, JournalState> {
   final JournalService _journalService;
+  final AuthService _authService;
 
-  JournalBloc({required JournalService journalService})
-    : _journalService = journalService,
-      super(JournalInitial()) {
+  JournalBloc({
+    required JournalService journalService,
+    required AuthService authService,
+  })  : _journalService = journalService,
+        _authService = authService,
+        super(JournalInitial()) {
     on<LoadJournalEntries>(_onLoadJournalEntries);
+    on<CreateJournalEntry>(_onCreateJournalEntry);
     on<AddJournalEntry>(_onAddJournalEntry);
     on<UpdateJournalEntry>(_onUpdateJournalEntry);
     on<DeleteJournalEntry>(_onDeleteJournalEntry);
@@ -189,10 +319,54 @@ class JournalBloc extends Bloc<JournalEvent, JournalState> {
   ) async {
     emit(JournalLoading());
     try {
-      final entries = await _journalService.getJournalEntries();
+      var userId = _authService.currentUser?.id;
+      
+      // Try to get user if not cached
+      if (userId == null) {
+        final user = await _authService.getCurrentUser();
+        userId = user?.id;
+      }
+      
+      if (userId == null) {
+        emit(const JournalError(message: 'User not authenticated'));
+        return;
+      }
+      final entries = await _journalService.listByUser(userId);
       emit(JournalLoaded(entries: entries));
     } catch (e) {
       emit(JournalError(message: e.toString()));
+    }
+  }
+
+  Future<void> _onCreateJournalEntry(
+    CreateJournalEntry event,
+    Emitter<JournalState> emit,
+  ) async {
+    try {
+      final currentState = state;
+      if (currentState is JournalLoaded) {
+        emit(JournalLoading());
+        final newEntry = await _journalService.create(
+          userId: event.userId,
+          content: event.content,
+          mood: event.mood,
+          tags: event.tags,
+        );
+        final updatedEntries = [newEntry, ...currentState.entries];
+        emit(JournalLoaded(entries: updatedEntries));
+      }
+    } catch (e) {
+      print('❌ Journal creation error: $e');
+      String errorMessage = 'Failed to save journal entry';
+      if (e.toString().contains('502')) {
+        errorMessage = 'Server temporarily unavailable. Please try again.';
+      } else if (e.toString().contains('401') || e.toString().contains('403')) {
+        errorMessage = 'Please log in again';
+      } else if (e.toString().contains('timeout')) {
+        errorMessage = 'Connection timeout. Check your internet.';
+      }
+      emit(JournalError(message: errorMessage));
+      add(LoadJournalEntries());
     }
   }
 
@@ -213,10 +387,21 @@ class JournalBloc extends Bloc<JournalEvent, JournalState> {
     Emitter<JournalState> emit,
   ) async {
     try {
-      await _journalService.updateJournalEntry(event.entryId, event.content);
-      add(LoadJournalEntries());
+      final currentState = state;
+      if (currentState is JournalLoaded) {
+        emit(JournalLoading());
+        final updatedEntry = await _journalService.update(
+          event.entryId,
+          event.content,
+        );
+        final updatedEntries = currentState.entries
+            .map((entry) => entry.id == event.entryId ? updatedEntry : entry)
+            .toList();
+        emit(JournalLoaded(entries: updatedEntries));
+      }
     } catch (e) {
       emit(JournalError(message: e.toString()));
+      add(LoadJournalEntries());
     }
   }
 
@@ -225,10 +410,18 @@ class JournalBloc extends Bloc<JournalEvent, JournalState> {
     Emitter<JournalState> emit,
   ) async {
     try {
-      await _journalService.deleteJournalEntry(event.entryId);
-      add(LoadJournalEntries());
+      final currentState = state;
+      if (currentState is JournalLoaded) {
+        emit(JournalLoading());
+        await _journalService.delete(event.entryId);
+        final updatedEntries = currentState.entries
+            .where((entry) => entry.id != event.entryId)
+            .toList();
+        emit(JournalLoaded(entries: updatedEntries));
+      }
     } catch (e) {
       emit(JournalError(message: e.toString()));
+      add(LoadJournalEntries());
     }
   }
 }

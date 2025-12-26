@@ -9,10 +9,8 @@ import 'package:neurocompanion_flutter/screens/emotions_screen.dart';
 import 'package:neurocompanion_flutter/screens/tasks_screen.dart';
 import 'package:neurocompanion_flutter/screens/journal_screen.dart';
 import 'package:neurocompanion_flutter/screens/analytics_screen.dart';
-import 'package:neurocompanion_flutter/screens/voice_screen.dart';
-import 'package:neurocompanion_flutter/screens/caregiver_screen.dart';
-import 'package:neurocompanion_flutter/screens/wellness_screen.dart';
-import 'package:neurocompanion_flutter/screens/settings_screen.dart';
+import 'package:neurocompanion_flutter/screens/breathing_screen.dart';
+import 'package:neurocompanion_flutter/screens/profile_screen.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -29,7 +27,7 @@ class _MainLayoutState extends State<MainLayout> {
     const EmotionsScreen(),
     const TasksScreen(),
     const JournalScreen(),
-    const VoiceScreen(),
+    const AnalyticsScreen(),
   ];
 
   @override
@@ -37,12 +35,19 @@ class _MainLayoutState extends State<MainLayout> {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         final theme = themeProvider.currentTheme;
+        final authState = context.watch<AuthBloc>().state;
+        String userName = 'User';
+        
+        if (authState is AuthSuccess) {
+          userName = authState.user.name ?? authState.user.email.split('@')[0];
+        }
 
         return Scaffold(
           backgroundColor: theme.background,
           appBar: AppBar(
             backgroundColor: theme.card,
             elevation: 0,
+            automaticallyImplyLeading: false,
             title: Row(
               children: [
                 Container(
@@ -74,15 +79,60 @@ class _MainLayoutState extends State<MainLayout> {
               ],
             ),
             actions: [
-              IconButton(
-                icon: Icon(Icons.settings, color: theme.text),
-                onPressed: () {
-                  Scaffold.of(context).openDrawer();
+              // Profile Dropdown
+              PopupMenuButton<String>(
+                offset: const Offset(0, 50),
+                icon: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: theme.primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.person,
+                    color: theme.primary,
+                    size: 20,
+                  ),
+                ),
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'profile',
+                    child: Row(
+                      children: [
+                        Icon(Icons.person_outline, color: theme.text, size: 20),
+                        const SizedBox(width: 12),
+                        Text('Profile', style: TextStyle(color: theme.text)),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.logout, color: Colors.red, size: 20),
+                        const SizedBox(width: 12),
+                        Text('Logout', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
+                onSelected: (value) {
+                  if (value == 'profile') {
+                    _navigateToProfile();
+                  } else if (value == 'logout') {
+                    _handleLogout();
+                  }
                 },
+                color: theme.card,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: theme.border),
+                ),
               ),
+              const SizedBox(width: 8),
             ],
           ),
-          drawer: _buildDrawer(theme),
           body: SafeArea(
             child: IndexedStack(index: _currentIndex, children: _screens),
           ),
@@ -97,170 +147,17 @@ class _MainLayoutState extends State<MainLayout> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildNavItem(0, Icons.dashboard, 'Dashboard'),
-                    _buildNavItem(1, Icons.favorite, 'Emotions'),
+                    _buildNavItem(0, Icons.home, 'Home'),
+                    _buildNavItem(1, Icons.favorite, 'Mood'),
                     _buildNavItem(2, Icons.check_box, 'Tasks'),
                     _buildNavItem(3, Icons.book, 'Journal'),
-                    _buildNavItem(4, Icons.mic, 'Voice'),
+                    _buildNavItem(4, Icons.bar_chart, 'Analytics'),
                   ],
                 ),
               ),
             ),
           ),
         );
-      },
-    );
-  }
-
-  Widget _buildDrawer(AppTheme theme) {
-    return Drawer(
-      backgroundColor: theme.card,
-      child: SafeArea(
-        child: Column(
-          children: [
-            // Drawer Header
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [theme.primary, theme.secondary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: const Icon(
-                      Icons.psychology,
-                      color: Colors.white,
-                      size: 30,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'NeuroCompanion',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'Your mental health companion',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Drawer Items
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  _buildDrawerItem(
-                    theme,
-                    Icons.dashboard,
-                    'Dashboard',
-                    () => _navigateToScreen(0),
-                  ),
-                  _buildDrawerItem(
-                    theme,
-                    Icons.favorite,
-                    'Emotions',
-                    () => _navigateToScreen(1),
-                  ),
-                  _buildDrawerItem(
-                    theme,
-                    Icons.check_box,
-                    'Tasks',
-                    () => _navigateToScreen(2),
-                  ),
-                  _buildDrawerItem(
-                    theme,
-                    Icons.book,
-                    'Journal',
-                    () => _navigateToScreen(3),
-                  ),
-                  _buildDrawerItem(
-                    theme,
-                    Icons.mic,
-                    'Voice Assistant',
-                    () => _navigateToScreen(4),
-                  ),
-                  const Divider(),
-                  _buildDrawerItem(
-                    theme,
-                    Icons.bar_chart,
-                    'Analytics',
-                    () => _navigateToAnalytics(),
-                  ),
-                  _buildDrawerItem(
-                    theme,
-                    Icons.people,
-                    'Caregiver Portal',
-                    () => _navigateToCaregiver(),
-                  ),
-                  _buildDrawerItem(
-                    theme,
-                    Icons.spa,
-                    'Wellness',
-                    () => _navigateToWellness(),
-                  ),
-                  const Divider(),
-                  _buildDrawerItem(
-                    theme,
-                    Icons.settings,
-                    'Settings',
-                    () => _navigateToSettings(),
-                  ),
-                  _buildDrawerItem(
-                    theme,
-                    Icons.logout,
-                    'Logout',
-                    () => _handleLogout(),
-                    isDestructive: true,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDrawerItem(
-    AppTheme theme,
-    IconData icon,
-    String title,
-    VoidCallback onTap, {
-    bool isDestructive = false,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: isDestructive ? Colors.red : theme.primary),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: isDestructive ? Colors.red : theme.text,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      onTap: () {
-        Navigator.pop(context); // Close drawer
-        onTap();
       },
     );
   }
@@ -274,6 +171,8 @@ class _MainLayoutState extends State<MainLayout> {
         return Expanded(
           child: GestureDetector(
             onTap: () {
+              final screenNames = ['Dashboard', 'Emotions', 'Tasks', 'Journal', 'Analytics'];
+              print('📱 [NAVIGATION] Navigating to ${screenNames[index]}');
               setState(() {
                 _currentIndex = index;
               });
@@ -304,7 +203,7 @@ class _MainLayoutState extends State<MainLayout> {
                       color: isSelected
                           ? theme.primary
                           : theme.text.withOpacity(0.6),
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: isSelected
                           ? FontWeight.w600
                           : FontWeight.normal,
@@ -325,54 +224,59 @@ class _MainLayoutState extends State<MainLayout> {
     });
   }
 
-  void _navigateToAnalytics() {
+  void _navigateToProfile() {
+    print('👤 [NAVIGATION] Opening Profile Screen');
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
+      MaterialPageRoute(builder: (context) => const ProfileScreen()),
     );
   }
 
-  void _navigateToCaregiver() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const CaregiverScreen()),
-    );
-  }
-
-  void _navigateToWellness() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const WellnessScreen()),
-    );
-  }
-
-  void _navigateToSettings() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const SettingsScreen()),
-    );
-  }
-
-  void _handleLogout() {
-    showDialog(
+  void _handleLogout() async {
+    print('🚪 [AUTH] Logout requested');
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<AuthBloc>().add(LogoutRequested());
-            },
-            child: const Text('Logout'),
-          ),
-        ],
+      builder: (dialogContext) => Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          final theme = themeProvider.currentTheme;
+          return AlertDialog(
+            backgroundColor: theme.card,
+            title: Text('Logout', style: TextStyle(color: theme.text)),
+            content: Text(
+              'Are you sure you want to logout?',
+              style: TextStyle(color: theme.text),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text('Cancel', style: TextStyle(color: theme.text)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Logout', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          );
+        },
       ),
     );
+
+    if (confirmed == true && mounted) {
+      print('✅ [AUTH] Logout confirmed, clearing data...');
+      // Dispatch logout event
+      context.read<AuthBloc>().add(LogoutRequested());
+      
+      // Wait a frame for bloc to process
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      print('🔐 [AUTH] Navigating to login screen');
+      // Navigate to login screen and remove all previous routes
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/login',
+          (route) => false,
+        );
+      }
+    }
   }
 }

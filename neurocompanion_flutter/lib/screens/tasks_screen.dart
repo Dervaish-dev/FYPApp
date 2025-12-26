@@ -3,11 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:neurocompanion_flutter/services/notification_service.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:neurocompanion_flutter/providers/theme_provider.dart';
 import 'package:neurocompanion_flutter/bloc/bloc.dart';
 import 'package:neurocompanion_flutter/bloc/blocs.dart';
 import 'package:neurocompanion_flutter/models/task.dart';
+import 'package:neurocompanion_flutter/screens/task_statistics_screen.dart';
+import 'package:neurocompanion_flutter/widgets/task_filter_sheet.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -17,8 +20,11 @@ class TasksScreen extends StatefulWidget {
 }
 
 class _TasksScreenState extends State<TasksScreen> {
-  final FlutterLocalNotificationsPlugin _notifications =
-      FlutterLocalNotificationsPlugin();
+  final NotificationService _notificationService = NotificationService();
+  
+  TaskPriority? _filterPriority;
+  TaskStatus? _filterStatus;
+  DateTimeRange? _filterDateRange;
 
   @override
   void initState() {
@@ -28,25 +34,7 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Future<void> _initializeNotifications() async {
-    tz.initializeTimeZones();
-
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    const DarwinInitializationSettings initializationSettingsIOS =
-        DarwinInitializationSettings(
-          requestAlertPermission: true,
-          requestBadgePermission: true,
-          requestSoundPermission: true,
-        );
-
-    const InitializationSettings initializationSettings =
-        InitializationSettings(
-          android: initializationSettingsAndroid,
-          iOS: initializationSettingsIOS,
-        );
-
-    await _notifications.initialize(initializationSettings);
+    await _notificationService.initialize();
   }
 
   @override
@@ -65,22 +53,36 @@ class _TasksScreenState extends State<TasksScreen> {
                     child: CircularProgressIndicator(color: theme.primary),
                   );
                 } else if (state is TaskLoaded) {
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header
-                        _buildHeader(theme),
-                        const SizedBox(height: 24),
+                  final filteredTasks = _applyFilters(state.tasks);
+                  
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      context.read<TaskBloc>().add(LoadTasks());
+                      await Future.delayed(const Duration(milliseconds: 500));
+                    },
+                    color: theme.primary,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Header
+                          _buildHeader(theme),
+                          const SizedBox(height: 16),
+                          
+                          // Filter and Stats Bar
+                          _buildFilterBar(theme),
+                          const SizedBox(height: 24),
 
-                        // Metrics Cards
-                        _buildMetricsSection(theme, state.tasks),
-                        const SizedBox(height: 24),
+                          // Metrics Cards
+                          _buildMetricsSection(theme, filteredTasks),
+                          const SizedBox(height: 24),
 
-                        // Task Categories
-                        _buildTaskCategories(theme, state.tasks),
-                      ],
+                          // Task Categories
+                          _buildTaskCategories(theme, filteredTasks),
+                        ],
+                      ),
                     ),
                   );
                 } else if (state is TaskError) {
@@ -353,15 +355,6 @@ class _TasksScreenState extends State<TasksScreen> {
               Colors.orange,
               TaskStatus.todo,
               tasks.where((t) => t.status == TaskStatus.todo).toList(),
-            ),
-            const SizedBox(height: 12),
-            _buildCategoryCard(
-              theme,
-              'In Progress',
-              '${tasks.where((t) => t.status == TaskStatus.inProgress).length}',
-              Colors.blue,
-              TaskStatus.inProgress,
-              tasks.where((t) => t.status == TaskStatus.inProgress).toList(),
             ),
             const SizedBox(height: 12),
             _buildCategoryCard(
@@ -815,6 +808,104 @@ class _TasksScreenState extends State<TasksScreen> {
           task.completedAt!.day == today.day;
     }).length;
   }
+
+  List<Task> _applyFilters(List<Task> tasks) {
+    var filtered = tasks;
+
+    if (_filterPriority != null) {
+      filtered = filtered.where((t) => t.priority == _filterPriority).toList();
+    }
+
+    if (_filterStatus != null) {
+      filtered = filtered.where((t) => t.status == _filterStatus).toList();
+    }
+
+    if (_filterDateRange != null) {
+      filtered = filtered.where((t) {
+        if (t.dueDate == null) return false;
+        return t.dueDate!.isAfter(_filterDateRange!.start.subtract(const Duration(days: 1))) &&
+               t.dueDate!.isBefore(_filterDateRange!.end.add(const Duration(days: 1)));
+      }).toList();
+    }
+
+    return filtered;
+  }
+
+  Widget _buildFilterBar(AppTheme theme) {
+    final hasFilters = _filterPriority != null || _filterStatus != null || _filterDateRange != null;
+
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => TaskFilterSheet(
+                  selectedPriority: _filterPriority,
+                  selectedStatus: _filterStatus,
+                  selectedDateRange: _filterDateRange,
+                  onPriorityChanged: (p) => setState(() => _filterPriority = p),
+                  onStatusChanged: (s) => setState(() => _filterStatus = s),
+                  onDateRangeChanged: (d) => setState(() => _filterDateRange = d),
+                  onReset: () {
+                    setState(() {
+                      _filterPriority = null;
+                      _filterStatus = null;
+                      _filterDateRange = null;
+                    });
+                  },
+                ),
+              );
+            },
+            icon: Icon(
+              hasFilters ? Icons.filter_alt : Icons.filter_alt_outlined,
+              color: hasFilters ? theme.primary : theme.text.withOpacity(0.7),
+            ),
+            label: Text(
+              hasFilters ? 'Filtered' : 'Filter',
+              style: TextStyle(
+                color: hasFilters ? theme.primary : theme.text.withOpacity(0.7),
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(
+                color: hasFilters ? theme.primary : theme.border,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        OutlinedButton.icon(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const TaskStatisticsScreen(),
+              ),
+            );
+          },
+          icon: Icon(
+            Icons.bar_chart,
+            color: theme.text.withOpacity(0.7),
+          ),
+          label: Text(
+            'Stats',
+            style: TextStyle(
+              color: theme.text.withOpacity(0.7),
+            ),
+          ),
+          style: OutlinedButton.styleFrom(
+            side: BorderSide(color: theme.border),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _AddTaskDialog extends StatefulWidget {
@@ -1121,9 +1212,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
 
       if (widget.editingTask != null) {
         // Update existing task
-        context.read<TaskBloc>().add(
-          UpdateTaskStatus(taskId: task.id, status: task.status),
-        );
+        context.read<TaskBloc>().add(UpdateTask(task: task));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Task "${task.title}" updated successfully!'),
@@ -1167,7 +1256,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
     if (task.reminderTime == null) return;
 
     final now = DateTime.now();
-    final reminderDateTime = DateTime(
+    var reminderDateTime = DateTime(
       now.year,
       now.month,
       now.day,
@@ -1176,34 +1265,17 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
     );
 
     if (reminderDateTime.isBefore(now)) {
-      reminderDateTime.add(const Duration(days: 1));
+      reminderDateTime = reminderDateTime.add(const Duration(days: 1));
     }
 
-    const AndroidNotificationDetails androidDetails =
-        AndroidNotificationDetails(
-          'task_reminders',
-          'Task Reminders',
-          channelDescription: 'Notifications for task reminders',
-          importance: Importance.high,
-          priority: Priority.high,
-        );
-
-    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails();
-
-    const NotificationDetails notificationDetails = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    await FlutterLocalNotificationsPlugin().zonedSchedule(
-      task.id.hashCode,
-      'Task Reminder',
-      'Don\'t forget: ${task.title}',
-      tz.TZDateTime.from(reminderDateTime, tz.local),
-      notificationDetails,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
+    final notificationService = NotificationService();
+    await notificationService.scheduleNotification(
+      id: task.id.hashCode,
+      title: 'Task Reminder',
+      body: 'Don\'t forget: ${task.title}',
+      scheduledDate: reminderDateTime,
+      channel: NotificationChannel.tasks,
+      payload: 'task:${task.id}',
     );
   }
 }

@@ -7,29 +7,67 @@ class User extends Equatable {
   final String name;
   final String email;
   final DateTime createdAt;
+  final int? age;
+  final String? neurotype;
+  final bool? twoFactorEnabled;
 
   const User({
     required this.id,
     required this.name,
     required this.email,
     required this.createdAt,
+    this.age,
+    this.neurotype,
+    this.twoFactorEnabled,
   });
 
   @override
-  List<Object?> get props => [id, name, email, createdAt];
+  List<Object?> get props => [id, name, email, createdAt, age, neurotype, twoFactorEnabled];
 
   User copyWith({
     String? id,
     String? name,
     String? email,
     DateTime? createdAt,
+    int? age,
+    String? neurotype,
+    bool? twoFactorEnabled,
   }) {
     return User(
       id: id ?? this.id,
       name: name ?? this.name,
       email: email ?? this.email,
       createdAt: createdAt ?? this.createdAt,
+      age: age ?? this.age,
+      neurotype: neurotype ?? this.neurotype,
+      twoFactorEnabled: twoFactorEnabled ?? this.twoFactorEnabled,
     );
+  }
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['_id'] ?? json['id'] ?? '',
+      name: json['name'] ?? '',
+      email: json['email'] ?? '',
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : DateTime.now(),
+      age: json['age'],
+      neurotype: json['neurotype'],
+      twoFactorEnabled: json['twoFactorEnabled'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'email': email,
+      'createdAt': createdAt.toIso8601String(),
+      'age': age,
+      'neurotype': neurotype,
+      'twoFactorEnabled': twoFactorEnabled,
+    };
   }
 }
 
@@ -76,6 +114,8 @@ class JournalEntry extends Equatable {
   final String id;
   final String content;
   final String? emotion;
+  final double emotionConfidence;
+  final String? aiAnalysis;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -83,17 +123,21 @@ class JournalEntry extends Equatable {
     required this.id,
     required this.content,
     this.emotion,
+    this.emotionConfidence = 0.0,
+    this.aiAnalysis,
     required this.createdAt,
     this.updatedAt,
   });
 
   @override
-  List<Object?> get props => [id, content, emotion, createdAt, updatedAt];
+  List<Object?> get props => [id, content, emotion, emotionConfidence, aiAnalysis, createdAt, updatedAt];
 
   JournalEntry copyWith({
     String? id,
     String? content,
     String? emotion,
+    double? emotionConfidence,
+    String? aiAnalysis,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -101,6 +145,8 @@ class JournalEntry extends Equatable {
       id: id ?? this.id,
       content: content ?? this.content,
       emotion: emotion ?? this.emotion,
+      emotionConfidence: emotionConfidence ?? this.emotionConfidence,
+      aiAnalysis: aiAnalysis ?? this.aiAnalysis,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
