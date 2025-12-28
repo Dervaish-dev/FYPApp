@@ -19,17 +19,22 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _otpController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   bool _isLoading = false;
   bool _showOTP = false;
   bool _obscurePassword = true;
+  bool _isRegistering = false;
   String? _errorMessage;
-  String? _caregiverId;
+  String? _userEmail;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     _otpController.dispose();
+    _nameController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -57,14 +62,14 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
       print('✅ [CAREGIVER LOGIN] Login response received');
 
       if (response['success'] == true) {
-        // Check if 2FA is required
-        if (response['requires2FA'] == true) {
+        // Check if 2FA or OTP is required
+        if (response['requires2FA'] == true || response['requiresOTP'] == true) {
           setState(() {
             _showOTP = true;
-            _caregiverId = response['caregiverId'] as String?;
+            _userEmail = _emailController.text.trim();
             _isLoading = false;
           });
-          print('🔐 [CAREGIVER LOGIN] 2FA required');
+          print('🔐 [CAREGIVER LOGIN] OTP required');
           return;
         }
 
@@ -99,6 +104,72 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
     }
   }
 
+  Future<void> _handleRegister() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final apiClient = ApiClient(
+        baseUrl: ApiConfig.baseUrl,
+        tokenStore: SharedPrefsTokenStore(),
+      );
+
+      print('📝 [CAREGIVER REGISTER] Registration attempt for: ${_emailController.text.trim()}');
+      
+      final response = await apiClient.post('/caregiver/register', body: {
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'password': _passwordController.text,
+        'phone': _phoneController.text.trim(),
+      }, authenticated: false);
+
+      print('✅ [CAREGIVER REGISTER] Registration response received');
+
+      if (response['success'] == true) {
+        // Check if OTP verification is required
+        if (response['requiresOTP'] == true) {
+          setState(() {
+            _showOTP = true;
+            _userEmail = _emailController.text.trim();
+            _isLoading = false;
+          });
+          print('📧 [CAREGIVER REGISTER] OTP sent to email');
+          return;
+        }
+
+        // Store caregiver token if no OTP required
+        final token = response['token'] as String?;
+        if (token != null) {
+          await SharedPrefsTokenStore().writeToken(token);
+          print('✅ [CAREGIVER REGISTER] Token stored');
+        }
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CaregiverLayoutScreen(),
+            ),
+          );
+        }
+      } else {
+        throw Exception(response['message'] ?? 'Registration failed');
+      }
+    } catch (e) {
+      print('❌ [CAREGIVER REGISTER] Error: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Registration failed. Please try again.';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _verifyOTP() async {
     if (_otpController.text.trim().isEmpty) {
       setState(() => _errorMessage = 'Please enter the verification code');
@@ -116,14 +187,14 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
         tokenStore: SharedPrefsTokenStore(),
       );
 
-      print('🔐 [CAREGIVER LOGIN] Verifying 2FA code');
+      print('🔐 [CAREGIVER] Verifying OTP code');
       
-      final response = await apiClient.post('/caregiver/verify-2fa', body: {
-        'caregiverId': _caregiverId,
+      final response = await apiClient.post('/caregiver/verify-otp', body: {
+        'email': _userEmail,
         'otp': _otpController.text.trim(),
       }, authenticated: false);
 
-      print('✅ [CAREGIVER LOGIN] 2FA verified successfully');
+      print('✅ [CAREGIVER] OTP verified successfully');
 
       if (response['success'] == true) {
         // Store caregiver token
@@ -151,6 +222,45 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _resendOTP() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final apiClient = ApiClient(
+        baseUrl: ApiConfig.baseUrl,
+        tokenStore: SharedPrefsTokenStore(),
+      );
+
+      final response = await apiClient.post('/caregiver/resend-otp', body: {
+        'email': _userEmail,
+      }, authenticated: false);
+
+      if (response['success'] == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response['message'] ?? 'New OTP sent to your email!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        throw Exception(response['message'] ?? 'Failed to resend OTP');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to resend OTP. Please try again.';
+        });
+      }
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -290,6 +400,31 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
       key: _formKey,
       child: Column(
         children: [
+          // Name Field (only for registration)
+          if (_isRegistering) ...[
+            TextFormField(
+              controller: _nameController,
+              keyboardType: TextInputType.name,
+              textInputAction: TextInputAction.next,
+              style: TextStyle(color: theme.text),
+              decoration: InputDecoration(
+                labelText: 'Full Name',
+                hintText: 'Enter your full name',
+                prefixIcon: Icon(
+                  Icons.person_outline,
+                  color: theme.text.withOpacity(0.7),
+                ),
+              ),
+              validator: (value) {
+                if (_isRegistering && (value == null || value.isEmpty)) {
+                  return 'Name is required';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+
           // Email Field
           TextFormField(
             controller: _emailController,
@@ -320,8 +455,8 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
           TextFormField(
             controller: _passwordController,
             obscureText: _obscurePassword,
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _handleLogin(),
+            textInputAction: _isRegistering ? TextInputAction.next : TextInputAction.done,
+            onFieldSubmitted: (_) => _isRegistering ? null : _handleLogin(),
             style: TextStyle(color: theme.text),
             decoration: InputDecoration(
               labelText: 'Password',
@@ -350,6 +485,33 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
               return null;
             },
           ),
+          const SizedBox(height: 16),
+
+          // Phone Field (only for registration)
+          if (_isRegistering) ...[
+            TextFormField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _handleRegister(),
+              style: TextStyle(color: theme.text),
+              decoration: InputDecoration(
+                labelText: 'Phone Number',
+                hintText: '+1 234 567 8900',
+                prefixIcon: Icon(
+                  Icons.phone_outlined,
+                  color: theme.text.withOpacity(0.7),
+                ),
+              ),
+              validator: (value) {
+                if (_isRegistering && (value == null || value.isEmpty)) {
+                  return 'Phone number is required';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
 
           if (_errorMessage != null) ...[
             const SizedBox(height: 16),
@@ -377,12 +539,12 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
 
           const SizedBox(height: 24),
 
-          // Login Button
+          // Login/Register Button
           SizedBox(
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: _isLoading ? null : _handleLogin,
+              onPressed: _isLoading ? null : (_isRegistering ? _handleRegister : _handleLogin),
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.primary,
                 shape: RoundedRectangleBorder(
@@ -390,10 +552,10 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
                 ),
               ),
               child: _isLoading
-                  ? const Row(
+                  ? Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        SizedBox(
+                        const SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
@@ -401,12 +563,43 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         ),
-                        SizedBox(width: 12),
-                        Text('Signing in...'),
+                        const SizedBox(width: 12),
+                        Text(_isRegistering ? 'Creating Account...' : 'Signing in...'),
                       ],
                     )
-                  : const Text('Sign In'),
+                  : Text(_isRegistering ? 'Create Account' : 'Sign In'),
             ),
+          ),
+          const SizedBox(height: 16),
+
+          // Toggle between Login and Register
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _isRegistering ? 'Already have an account? ' : "Don't have an account? ",
+                style: TextStyle(
+                  color: theme.text.withOpacity(0.7),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _isRegistering = !_isRegistering;
+                    _errorMessage = null;
+                    _nameController.clear();
+                    _phoneController.clear();
+                  });
+                },
+                child: Text(
+                  _isRegistering ? 'Sign In' : 'Sign Up',
+                  style: TextStyle(
+                    color: theme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -502,6 +695,18 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
             ),
           ),
           const SizedBox(height: 16),
+
+          // Resend OTP Button
+          TextButton(
+            onPressed: _isLoading ? null : _resendOTP,
+            child: Text(
+              'Resend Code',
+              style: TextStyle(
+                color: theme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
 
           // Back Button
           TextButton(
