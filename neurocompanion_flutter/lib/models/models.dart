@@ -9,6 +9,7 @@ class User extends Equatable {
   final DateTime createdAt;
   final int? age;
   final String? neurotype;
+  final String? gender;
   final bool? twoFactorEnabled;
 
   const User({
@@ -18,11 +19,12 @@ class User extends Equatable {
     required this.createdAt,
     this.age,
     this.neurotype,
+    this.gender,
     this.twoFactorEnabled,
   });
 
   @override
-  List<Object?> get props => [id, name, email, createdAt, age, neurotype, twoFactorEnabled];
+  List<Object?> get props => [id, name, email, createdAt, age, neurotype, gender, twoFactorEnabled];
 
   User copyWith({
     String? id,
@@ -31,6 +33,7 @@ class User extends Equatable {
     DateTime? createdAt,
     int? age,
     String? neurotype,
+    String? gender,
     bool? twoFactorEnabled,
   }) {
     return User(
@@ -40,6 +43,7 @@ class User extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       age: age ?? this.age,
       neurotype: neurotype ?? this.neurotype,
+      gender: gender ?? this.gender,
       twoFactorEnabled: twoFactorEnabled ?? this.twoFactorEnabled,
     );
   }
@@ -54,6 +58,7 @@ class User extends Equatable {
           : DateTime.now(),
       age: json['age'],
       neurotype: json['neurotype'],
+      gender: json['gender'],
       twoFactorEnabled: json['twoFactorEnabled'],
     );
   }
@@ -66,6 +71,7 @@ class User extends Equatable {
       'createdAt': createdAt.toIso8601String(),
       'age': age,
       'neurotype': neurotype,
+      'gender': gender,
       'twoFactorEnabled': twoFactorEnabled,
     };
   }

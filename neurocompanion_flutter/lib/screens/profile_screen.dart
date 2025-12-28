@@ -312,12 +312,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 dropdownColor: theme.card,
                                 style: TextStyle(color: theme.text),
                                 underline: Container(),
-                                items: ['ocean', 'midnight', 'sunset', 'forest']
+                                items: ['ocean', 'coral', 'midnight', 'mint', 'lavender', 'golden']
                                     .map((String themeName) {
                                   return DropdownMenuItem<String>(
                                     value: themeName,
                                     child: Text(
-                                      themeName[0].toUpperCase() + themeName.substring(1),
+                                      AppTheme.getTheme(themeName).name,
                                     ),
                                   );
                                 }).toList(),

@@ -139,9 +139,11 @@ class _ThemeSelectionScreenState extends State<ThemeSelectionScreen>
               mainAxisSpacing: 12,
               childAspectRatio: 1.2,
             ),
-            itemCount: AppTheme.themes.length,
+            itemCount: 6,
             itemBuilder: (context, index) {
-              final themeKey = AppTheme.themes.keys.elementAt(index);
+              // Only show base themes (first 6), not emotion-based themes
+              final baseThemeKeys = ['ocean', 'coral', 'midnight', 'mint', 'lavender', 'golden'];
+              final themeKey = baseThemeKeys[index];
               final themeData = AppTheme.getTheme(themeKey);
               final isSelected = themeProvider.currentThemeKey == themeKey;
 

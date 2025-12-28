@@ -159,20 +159,34 @@ class _VoiceScreenState extends State<VoiceScreen> with SingleTickerProviderStat
       return;
     }
 
+    print('📞 Call ended, checking status for: $callId');
+    
+    // Give backend a moment to start processing
+    await Future.delayed(const Duration(seconds: 2));
+
     _statusTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
       _savingAttempts += 1;
-      if (_savingAttempts > 30) {
-        _onVoiceJournalError('Timeout waiting for transcript');
+      print('🔍 Checking status (attempt $_savingAttempts/45)...');
+      
+      if (_savingAttempts > 45) {
+        _onVoiceJournalError('Processing is taking longer than expected. Your entry may still be saved - please check your journal in a moment.');
         return;
+      }
+      
+      // Show progress update every 10 seconds
+      if (_savingAttempts > 0 && _savingAttempts % 10 == 0) {
+        print('⏳ Still waiting... ($_savingAttempts s elapsed)');
       }
 
       try {
         final status = await voiceJournalService.getVoiceJournalStatus(callId);
         if (!mounted) return;
         if (status.isCompleted) {
+          print('✅ Journal entry completed! EntryId: ${status.entryId}');
           _onVoiceJournalCompleted(status.entryId);
         }
       } catch (e) {
+        print('❌ Status check error: $e');
         if (!mounted) return;
         _onVoiceJournalError(e.toString());
       }

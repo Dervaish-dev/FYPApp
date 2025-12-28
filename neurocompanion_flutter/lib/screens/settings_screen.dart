@@ -169,6 +169,10 @@ class _SettingsScreenState extends State<SettingsScreen>
                   _buildFontSizeSection(themeProvider, theme),
                   const SizedBox(height: 24),
 
+                  // Profile Information
+                  _buildProfileSection(theme),
+                  const SizedBox(height: 24),
+
                   // Adaptive UI Mode Toggle
                   _buildAdaptiveModeSection(themeProvider, theme),
                   const SizedBox(height: 24),
@@ -245,9 +249,11 @@ class _SettingsScreenState extends State<SettingsScreen>
               mainAxisSpacing: 12,
               childAspectRatio: 1.2,
             ),
-            itemCount: AppTheme.themes.length,
+            itemCount: 6,
             itemBuilder: (context, index) {
-              final themeKey = AppTheme.themes.keys.elementAt(index);
+              // Only show base themes (first 6), not emotion-based themes
+              final baseThemeKeys = ['ocean', 'coral', 'midnight', 'mint', 'lavender', 'golden'];
+              final themeKey = baseThemeKeys[index];
               final themeData = AppTheme.getTheme(themeKey);
               final isSelected = themeProvider.currentThemeKey == themeKey;
 
@@ -407,6 +413,124 @@ class _SettingsScreenState extends State<SettingsScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildProfileSection(AppTheme theme) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        if (state is! AuthSuccess) {
+          return const SizedBox.shrink();
+        }
+
+        final user = state.user;
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: theme.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: theme.border),
+            boxShadow: [
+              BoxShadow(
+                color: theme.primary.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Profile Information',
+                style: TextStyle(
+                  color: theme.text,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildProfileItem(
+                theme,
+                icon: Icons.person,
+                label: 'Name',
+                value: user.name,
+              ),
+              const SizedBox(height: 12),
+              _buildProfileItem(
+                theme,
+                icon: Icons.email,
+                label: 'Email',
+                value: user.email,
+              ),
+              if (user.age != null) ...[
+                const SizedBox(height: 12),
+                _buildProfileItem(
+                  theme,
+                  icon: Icons.cake,
+                  label: 'Age',
+                  value: '${user.age} years',
+                ),
+              ],
+              if (user.gender != null && user.gender!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _buildProfileItem(
+                  theme,
+                  icon: Icons.wc,
+                  label: 'Gender',
+                  value: user.gender!,
+                ),
+              ],
+              if (user.neurotype != null && user.neurotype!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _buildProfileItem(
+                  theme,
+                  icon: Icons.psychology,
+                  label: 'Neurotype',
+                  value: user.neurotype!,
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildProfileItem(
+    AppTheme theme, {
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: theme.primary, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: theme.text.withOpacity(0.7),
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  color: theme.text,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

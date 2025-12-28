@@ -9,6 +9,8 @@ class AppTheme {
   final Color card;
   final Color text;
   final Color border;
+  final Color accent;
+  final Color mutedText;
 
   const AppTheme({
     required this.name,
@@ -18,99 +20,122 @@ class AppTheme {
     required this.card,
     required this.text,
     required this.border,
+    required this.accent,
+    required this.mutedText,
   });
 
   static const Map<String, AppTheme> themes = {
+    // Base themes matching web app
     'ocean': AppTheme(
-      name: 'Ocean',
-      primary: Color(0xFF0EA5E9),
-      secondary: Color(0xFF0284C7),
-      background: Color(0xFFF0F9FF),
-      card: Color(0xFFFFFFFF),
-      text: Color(0xFF111827),
-      border: Color(0xFFE5E7EB),
+      name: 'Ocean Blue',
+      primary: Color(0xFF0EA5E9),  // sky-500
+      secondary: Color(0xFF0284C7),  // sky-600
+      background: Color(0xFFF0F9FF),  // sky-50
+      card: Color(0xFFE0F2FE),  // sky-100 - slightly darker than background for contrast
+      text: Color(0xFF0C4A6E),  // sky-900 - dark blue for good contrast
+      border: Color(0xFFBAE6FD),  // sky-200
+      accent: Color(0xFF0369A1),  // sky-700
+      mutedText: Color(0xFF0284C7),  // sky-600
     ),
     'coral': AppTheme(
-      name: 'Coral',
-      primary: Color(0xFFF97316),
-      secondary: Color(0xFFEA580C),
-      background: Color(0xFFFFF7ED),
-      card: Color(0xFFFFFFFF),
-      text: Color(0xFF111827),
-      border: Color(0xFFE5E7EB),
+      name: 'Coral Pink',
+      primary: Color(0xFFEC4899),  // pink-500
+      secondary: Color(0xFFDB2777),  // pink-600
+      background: Color(0xFFFDF2F8),  // pink-50
+      card: Color(0xFFFCE7F3),  // pink-100
+      text: Color(0xFF831843),  // pink-900
+      border: Color(0xFFFBCFE8),  // pink-200
+      accent: Color(0xFFBE185D),  // pink-700
+      mutedText: Color(0xFFDB2777),  // pink-600
     ),
     'midnight': AppTheme(
-      name: 'Midnight',
-      primary: Color(0xFF6366F1),
-      secondary: Color(0xFF4F46E5),
-      background: Color(0xFF1E293B),
-      card: Color(0xFF334155),
-      text: Color(0xFFFFFFFF),
-      border: Color(0xFF475569),
+      name: 'Midnight Dark',
+      primary: Color(0xFF64748B),  // slate-500
+      secondary: Color(0xFF475569),  // slate-600
+      background: Color(0xFF1E293B),  // slate-800 - dark background
+      card: Color(0xFF334155),  // slate-700 - lighter for card contrast
+      text: Color(0xFFF1F5F9),  // slate-100 - light text for dark bg
+      border: Color(0xFF475569),  // slate-600
+      accent: Color(0xFF94A3B8),  // slate-400
+      mutedText: Color(0xFFCBD5E1),  // slate-300
     ),
     'mint': AppTheme(
-      name: 'Mint',
-      primary: Color(0xFF10B981),
-      secondary: Color(0xFF059669),
-      background: Color(0xFFECFDF5),
-      card: Color(0xFFFFFFFF),
-      text: Color(0xFF111827),
-      border: Color(0xFFE5E7EB),
+      name: 'Mint Green',
+      primary: Color(0xFF22C55E),  // green-500
+      secondary: Color(0xFF16A34A),  // green-600
+      background: Color(0xFFF0FDF4),  // green-50
+      card: Color(0xFFDCFCE7),  // green-100
+      text: Color(0xFF14532D),  // green-900
+      border: Color(0xFFBBF7D0),  // green-200
+      accent: Color(0xFF15803D),  // green-700
+      mutedText: Color(0xFF16A34A),  // green-600
     ),
     'lavender': AppTheme(
       name: 'Lavender',
-      primary: Color(0xFF8B5CF6),
-      secondary: Color(0xFF7C3AED),
-      background: Color(0xFFFAF5FF),
-      card: Color(0xFFFFFFFF),
-      text: Color(0xFF111827),
-      border: Color(0xFFE5E7EB),
+      primary: Color(0xFFA855F7),  // purple-500
+      secondary: Color(0xFF9333EA),  // purple-600
+      background: Color(0xFFFAF5FF),  // purple-50
+      card: Color(0xFFF3E8FF),  // purple-100
+      text: Color(0xFF581C87),  // purple-900
+      border: Color(0xFFE9D5FF),  // purple-200
+      accent: Color(0xFF7C3AED),  // purple-700
+      mutedText: Color(0xFF9333EA),  // purple-600
     ),
     'golden': AppTheme(
-      name: 'Golden',
-      primary: Color(0xFFF59E0B),
-      secondary: Color(0xFFD97706),
-      background: Color(0xFFFFFBEB),
-      card: Color(0xFFFFFFFF),
-      text: Color(0xFF111827),
-      border: Color(0xFFE5E7EB),
+      name: 'Golden Beige',
+      primary: Color(0xFFEAB308),  // yellow-500
+      secondary: Color(0xFFCA8A04),  // yellow-600
+      background: Color(0xFFFEFCE8),  // yellow-50
+      card: Color(0xFFFEF9C3),  // yellow-100
+      text: Color(0xFF713F12),  // yellow-900
+      border: Color(0xFFFEF08A),  // yellow-200
+      accent: Color(0xFFA16207),  // yellow-700
+      mutedText: Color(0xFFCA8A04),  // yellow-600
     ),
-    // Emotion-based themes
+    // Emotion-based themes for adaptive mode
     'theme-happy': AppTheme(
       name: 'Happy',
-      primary: Color(0xFFFBBF24),
-      secondary: Color(0xFFF59E0B),
-      background: Color(0xFFFEF3C7),
-      card: Color(0xFFFFFFFF),
-      text: Color(0xFF111827),
-      border: Color(0xFFFDE68A),
+      primary: Color(0xFFFBBF24),  // amber-400
+      secondary: Color(0xFFF59E0B),  // amber-500
+      background: Color(0xFFFEF3C7),  // amber-100
+      card: Color(0xFFFFFFFF),  // white for contrast
+      text: Color(0xFF78350F),  // amber-900
+      border: Color(0xFFFDE68A),  // amber-200
+      accent: Color(0xFFD97706),  // amber-600
+      mutedText: Color(0xFF92400E),  // amber-800
     ),
     'theme-calm': AppTheme(
       name: 'Calm',
-      primary: Color(0xFFA78BFA),
-      secondary: Color(0xFF8B5CF6),
-      background: Color(0xFFF3F4F6),
-      card: Color(0xFFFFFFFF),
-      text: Color(0xFF111827),
-      border: Color(0xFFE5E7EB),
+      primary: Color(0xFFA78BFA),  // violet-400
+      secondary: Color(0xFF8B5CF6),  // violet-500
+      background: Color(0xFFF3F4F6),  // gray-100
+      card: Color(0xFFFFFFFF),  // white
+      text: Color(0xFF1F2937),  // gray-800
+      border: Color(0xFFE5E7EB),  // gray-200
+      accent: Color(0xFF7C3AED),  // violet-600
+      mutedText: Color(0xFF6B7280),  // gray-500
     ),
     'theme-neutral': AppTheme(
       name: 'Neutral',
-      primary: Color(0xFF9CA3AF),
-      secondary: Color(0xFF6B7280),
-      background: Color(0xFFF9FAFB),
-      card: Color(0xFFFFFFFF),
-      text: Color(0xFF111827),
-      border: Color(0xFFE5E7EB),
+      primary: Color(0xFF9CA3AF),  // gray-400
+      secondary: Color(0xFF6B7280),  // gray-500
+      background: Color(0xFFF9FAFB),  // gray-50
+      card: Color(0xFFFFFFFF),  // white
+      text: Color(0xFF111827),  // gray-900
+      border: Color(0xFFE5E7EB),  // gray-200
+      accent: Color(0xFF4B5563),  // gray-600
+      mutedText: Color(0xFF6B7280),  // gray-500
     ),
     'theme-balance': AppTheme(
       name: 'Balance',
-      primary: Color(0xFF14B8A6),
-      secondary: Color(0xFF0D9488),
-      background: Color(0xFFF0FDFA),
-      card: Color(0xFFFFFFFF),
-      text: Color(0xFF111827),
-      border: Color(0xFFCCFBF1),
+      primary: Color(0xFF14B8A6),  // teal-500
+      secondary: Color(0xFF0D9488),  // teal-600
+      background: Color(0xFFF0FDFA),  // teal-50
+      card: Color(0xFFFFFFFF),  // white
+      text: Color(0xFF134E4A),  // teal-900
+      border: Color(0xFFCCFBF1),  // teal-100
+      accent: Color(0xFF0F766E),  // teal-700
+      mutedText: Color(0xFF0D9488),  // teal-600
     ),
   };
 

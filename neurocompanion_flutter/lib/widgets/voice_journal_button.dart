@@ -77,22 +77,24 @@ class _VoiceJournalButtonState extends State<VoiceJournalButton> {
     if (!mounted) return;
     
     setState(() => _callState = 'saving');
+    print('📞 Call ended, checking status for: $callId');
 
     try {
       final voiceJournalService = context.read<VoiceJournalService>();
       
       // Initial wait for backend to start processing
-      await Future.delayed(const Duration(seconds: 3));
+      await Future.delayed(const Duration(seconds: 2));
       
-      // Poll for status (max 60 seconds - increased for n8n processing)
-      for (int i = 0; i < 60; i++) {
+      // Poll for status (max 45 seconds - matches web frontend)
+      for (int i = 0; i < 45; i++) {
         if (!mounted) return;
         
         try {
           final status = await voiceJournalService.getVoiceJournalStatus(callId);
-          print('📊 Voice journal status (${i + 1}/60): ${status.status}, entryId: ${status.entryId}');
+          print('🔍 Checking status (attempt ${i + 1}/45): ${status.status}');
           
           if (status.isCompleted) {
+            print('✅ Journal entry completed! EntryId: ${status.entryId}');
             if (!mounted) return;
             setState(() => _callState = 'success');
             
@@ -122,22 +124,13 @@ class _VoiceJournalButtonState extends State<VoiceJournalButton> {
             throw Exception('Backend error: ${status.status}');
           }
           
-          // Show progress update at 15 second mark
-          if (i == 15 && mounted) {
+          // Show progress update at 10 second intervals
+          if (i > 0 && i % 10 == 0 && mounted) {
+            print('⏳ Still waiting... (${i}s elapsed)');
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Still processing your journal entry...'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
-          
-          // Show another update at 30 second mark
-          if (i == 30 && mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Almost done, hang tight...'),
-                duration: Duration(seconds: 2),
+              SnackBar(
+                content: Text('Still processing... (${i}s)'),
+                duration: const Duration(seconds: 2),
               ),
             );
           }
@@ -153,9 +146,9 @@ class _VoiceJournalButtonState extends State<VoiceJournalButton> {
         await Future.delayed(const Duration(seconds: 1));
       }
       
-      // Timeout after 60 seconds - likely backend issue
+      // Timeout after 45 seconds - likely backend issue
       print('⏱️ Timeout waiting for journal entry completion');
-      throw Exception('Processing timeout. Your entry may still be saved - check your journal.');
+      throw Exception('Processing is taking longer than expected. Your entry may still be saved - please check your journal in a moment.');
       
     } catch (e) {
       print('❌ Error in _handleCallEnd: $e');
@@ -167,11 +160,11 @@ class _VoiceJournalButtonState extends State<VoiceJournalButton> {
         SnackBar(
           content: Text('$e'),
           backgroundColor: Colors.orange,
-          duration: const Duration(seconds: 5),
+          duration: const Duration(seconds: 6),
         ),
       );
         
-      await Future.delayed(const Duration(seconds: 4));
+      await Future.delayed(const Duration(seconds: 5));
       if (mounted) {
         setState(() {
           _callState = 'idle';
