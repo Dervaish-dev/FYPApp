@@ -11,6 +11,7 @@ class User extends Equatable {
   final String? neurotype;
   final String? gender;
   final bool? twoFactorEnabled;
+  final String role;
 
   const User({
     required this.id,
@@ -21,10 +22,11 @@ class User extends Equatable {
     this.neurotype,
     this.gender,
     this.twoFactorEnabled,
+    this.role = 'patient',
   });
 
   @override
-  List<Object?> get props => [id, name, email, createdAt, age, neurotype, gender, twoFactorEnabled];
+  List<Object?> get props => [id, name, email, createdAt, age, neurotype, gender, twoFactorEnabled, role];
 
   User copyWith({
     String? id,
@@ -35,6 +37,7 @@ class User extends Equatable {
     String? neurotype,
     String? gender,
     bool? twoFactorEnabled,
+    String? role,
   }) {
     return User(
       id: id ?? this.id,
@@ -45,6 +48,7 @@ class User extends Equatable {
       neurotype: neurotype ?? this.neurotype,
       gender: gender ?? this.gender,
       twoFactorEnabled: twoFactorEnabled ?? this.twoFactorEnabled,
+      role: role ?? this.role,
     );
   }
 

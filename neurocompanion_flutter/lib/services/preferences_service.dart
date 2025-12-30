@@ -2,7 +2,7 @@ import 'package:neurocompanion_flutter/services/api_client.dart';
 
 class UserPreferences {
   final String userId;
-  final String defaultTheme; // backend: ocean/coral/dark/mint/lavender/golden
+  final String defaultTheme; // backend: ocean/coral/dark/mint/lavender
   final bool adaptiveMode;
   final bool notificationsEnabled;
   final String language;

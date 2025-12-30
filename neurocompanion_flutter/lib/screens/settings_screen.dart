@@ -49,13 +49,12 @@ class _SettingsScreenState extends State<SettingsScreen>
   }
 
   String? _toBackendThemeKey(String themeKey) {
-    // Backend enum: ocean, coral, dark, mint, lavender, golden
+    // Backend enum: ocean, coral, dark, mint, lavender
     switch (themeKey) {
       case 'ocean':
       case 'coral':
       case 'mint':
       case 'lavender':
-      case 'golden':
         return themeKey;
       case 'midnight':
         return 'dark';
@@ -73,7 +72,6 @@ class _SettingsScreenState extends State<SettingsScreen>
       case 'coral':
       case 'mint':
       case 'lavender':
-      case 'golden':
         return backendTheme;
       default:
         return 'ocean';
@@ -249,10 +247,10 @@ class _SettingsScreenState extends State<SettingsScreen>
               mainAxisSpacing: 12,
               childAspectRatio: 1.2,
             ),
-            itemCount: 6,
+            itemCount: 5,
             itemBuilder: (context, index) {
-              // Only show base themes (first 6), not emotion-based themes
-              final baseThemeKeys = ['ocean', 'coral', 'midnight', 'mint', 'lavender', 'golden'];
+              // Only show base themes (first 5), not emotion-based themes
+              final baseThemeKeys = ['ocean', 'coral', 'midnight', 'mint', 'lavender'];
               final themeKey = baseThemeKeys[index];
               final themeData = AppTheme.getTheme(themeKey);
               final isSelected = themeProvider.currentThemeKey == themeKey;

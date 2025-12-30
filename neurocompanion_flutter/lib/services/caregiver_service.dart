@@ -35,6 +35,48 @@ class CaregiverService {
     return json is Map<String, dynamic> ? json : json.cast<String, dynamic>();
   }
 
+  /// Verify OTP for registration
+  Future<Map<String, dynamic>> verifyOtp({
+    required String email,
+    required String otp,
+  }) async {
+    final json = await _api.post(
+      '/caregiver/verify-otp',
+      authenticated: false,
+      body: {
+        'email': email.trim(),
+        'otp': otp.trim(),
+      },
+    );
+
+    if (json is! Map) {
+      throw const ApiException(message: 'Unexpected OTP verification response');
+    }
+
+    return json is Map<String, dynamic> ? json : json.cast<String, dynamic>();
+  }
+
+  /// Verify 2FA for login
+  Future<Map<String, dynamic>> verify2FA({
+    required String caregiverId,
+    required String otp,
+  }) async {
+    final json = await _api.post(
+      '/caregiver/verify-2fa',
+      authenticated: false,
+      body: {
+        'caregiverId': caregiverId,
+        'otp': otp.trim(),
+      },
+    );
+
+    if (json is! Map) {
+      throw const ApiException(message: 'Unexpected 2FA verification response');
+    }
+
+    return json is Map<String, dynamic> ? json : json.cast<String, dynamic>();
+  }
+
   /// Login caregiver
   Future<Map<String, dynamic>> login({
     required String email,

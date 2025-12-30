@@ -10,6 +10,8 @@ class CaregiverPatient extends Equatable {
   final DateTime? lastActive;
   final String? currentMood;
   final double? moodScore;
+  final int? totalTasks;
+  final int? completedTasks;
 
   const CaregiverPatient({
     required this.id,
@@ -20,10 +22,12 @@ class CaregiverPatient extends Equatable {
     this.lastActive,
     this.currentMood,
     this.moodScore,
+    this.totalTasks,
+    this.completedTasks,
   });
 
   @override
-  List<Object?> get props => [id, name, email, age, neurotype, lastActive, currentMood, moodScore];
+  List<Object?> get props => [id, name, email, age, neurotype, lastActive, currentMood, moodScore, totalTasks, completedTasks];
 
   factory CaregiverPatient.fromJson(Map<String, dynamic> json) {
     return CaregiverPatient(
@@ -34,7 +38,9 @@ class CaregiverPatient extends Equatable {
       neurotype: json['neurotype'],
       lastActive: json['lastActive'] != null ? DateTime.parse(json['lastActive']) : null,
       currentMood: json['currentMood'],
-      moodScore: json['moodScore']?.toDouble(),
+      moodScore: json['moodScore']?.toDouble() ?? json['wellnessScore']?.toDouble(),
+      totalTasks: json['totalTasks'],
+      completedTasks: json['tasksCompleted'],
     );
   }
 }

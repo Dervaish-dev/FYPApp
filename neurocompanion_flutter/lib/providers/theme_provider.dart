@@ -81,17 +81,6 @@ class AppTheme {
       accent: Color(0xFF7C3AED),  // purple-700
       mutedText: Color(0xFF9333EA),  // purple-600
     ),
-    'golden': AppTheme(
-      name: 'Golden Beige',
-      primary: Color(0xFFEAB308),  // yellow-500
-      secondary: Color(0xFFCA8A04),  // yellow-600
-      background: Color(0xFFFEFCE8),  // yellow-50
-      card: Color(0xFFFEF9C3),  // yellow-100
-      text: Color(0xFF713F12),  // yellow-900
-      border: Color(0xFFFEF08A),  // yellow-200
-      accent: Color(0xFFA16207),  // yellow-700
-      mutedText: Color(0xFFCA8A04),  // yellow-600
-    ),
     // Emotion-based themes for adaptive mode
     'theme-happy': AppTheme(
       name: 'Happy',

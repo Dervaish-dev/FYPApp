@@ -149,18 +149,38 @@ class AuthService {
 
     // Fallback: try to fetch from backend
     try {
-      final json = await _api.get('/auth/me', authenticated: true);
-      if (json is Map && json['data'] is Map && (json['data'] as Map)['user'] is Map) {
-        final userMap = (json['data'] as Map)['user'] as Map;
-        final user = User(
-          id: (userMap['id'] ?? '').toString(),
-          name: (userMap['name'] ?? '').toString(),
-          email: (userMap['email'] ?? '').toString(),
-          createdAt: DateTime.now(),
-        );
-        _cachedUser = user;
-        await _saveUser(user);
-        return user;
+      // Try patient endpoint first
+      try {
+        final json = await _api.get('/auth/me', authenticated: true);
+        if (json is Map && json['data'] is Map && (json['data'] as Map)['user'] is Map) {
+          final userMap = (json['data'] as Map)['user'] as Map;
+          final user = User(
+            id: (userMap['id'] ?? '').toString(),
+            name: (userMap['name'] ?? '').toString(),
+            email: (userMap['email'] ?? '').toString(),
+            createdAt: DateTime.now(),
+            role: 'patient',
+          );
+          _cachedUser = user;
+          await _saveUser(user);
+          return user;
+        }
+      } catch (_) {
+        // If patient endpoint fails, try caregiver endpoint
+        final json = await _api.get('/caregiver/me', authenticated: true);
+        if (json is Map && json['caregiver'] is Map) {
+          final caregiverMap = json['caregiver'] as Map;
+          final user = User(
+            id: (caregiverMap['id'] ?? '').toString(),
+            name: (caregiverMap['name'] ?? '').toString(),
+            email: (caregiverMap['email'] ?? '').toString(),
+            createdAt: DateTime.now(),
+            role: 'caregiver',
+          );
+          _cachedUser = user;
+          await _saveUser(user);
+          return user;
+        }
       }
     } catch (e) {
       print('Error fetching user from backend: $e');

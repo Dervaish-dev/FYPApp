@@ -23,36 +23,54 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   List<CaregiverPatient> _patients = [];
   bool _isLoading = true;
   String? _error;
+  String _caregiverName = 'Caregiver';
 
   @override
   void initState() {
     super.initState();
     _caregiverService = CaregiverService(apiClient: context.read<ApiClient>());
-    _loadPatients();
+    _loadData();
   }
 
-  Future<void> _loadPatients() async {
+  Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      final patientsData = await _caregiverService.getPatients();
+      // Load profile and patients in parallel
+      final results = await Future.wait([
+        _caregiverService.getProfile(),
+        _caregiverService.getPatients(),
+      ]);
+
+      final profileData = results[0] as Map<String, dynamic>;
+      final patientsData = results[1] as List<Map<String, dynamic>>;
+
       if (mounted) {
         setState(() {
+          if (profileData['caregiver'] != null) {
+            _caregiverName = profileData['caregiver']['name'] ?? 'Caregiver';
+          }
           _patients = patientsData.map((p) => CaregiverPatient.fromJson(p)).toList();
           _isLoading = false;
         });
       }
     } catch (e) {
+      print('Error loading dashboard data: $e');
       if (mounted) {
         setState(() {
-          _error = 'Failed to load patients';
+          _error = 'Failed to load dashboard data';
           _isLoading = false;
         });
       }
     }
+  }
+
+  Future<void> _loadPatients() async {
+    // Kept for refresh indicator
+    await _loadData();
   }
 
   int _calculateAverageWellness() {
@@ -65,13 +83,19 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   }
 
   int _calculateTotalTasks() {
-    // For now, return 0 until we fetch detailed stats
-    return 0;
+    if (_patients.isEmpty) return 0;
+    return _patients.fold<int>(
+      0,
+      (sum, p) => sum + (p.totalTasks ?? 0),
+    );
   }
 
   int _calculateCompletedTasks() {
-    // For now, return 0 until we fetch detailed stats
-    return 0;
+    if (_patients.isEmpty) return 0;
+    return _patients.fold<int>(
+      0,
+      (sum, p) => sum + (p.completedTasks ?? 0),
+    );
   }
 
   int _calculateCompletionRate() {
@@ -79,6 +103,68 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
     if (total == 0) return 0;
     final completed = _calculateCompletedTasks();
     return ((completed / total) * 100).round();
+  }
+
+  Widget _buildGreetingCard(AppTheme theme) {
+    final hour = DateTime.now().hour;
+    String greeting;
+    String emoji;
+    
+    if (hour < 12) {
+      greeting = 'Good Morning';
+      emoji = '☀️';
+    } else if (hour < 18) {
+      greeting = 'Good Afternoon';
+      emoji = '🌤️';
+    } else {
+      greeting = 'Good Evening';
+      emoji = '🌙';
+    }
+    
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [theme.primary.withOpacity(0.08), theme.secondary.withOpacity(0.03)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.border.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$greeting $emoji',
+            style: TextStyle(
+              color: theme.text.withOpacity(0.7),
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _caregiverName,
+            style: TextStyle(
+              color: theme.text,
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Here is your patient overview for today.',
+            style: TextStyle(
+              color: theme.text.withOpacity(0.6),
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -118,6 +204,10 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Greeting Card
+                    _buildGreetingCard(theme),
+                    const SizedBox(height: 24),
+
                     // Header
                     Text(
                       'Overview',

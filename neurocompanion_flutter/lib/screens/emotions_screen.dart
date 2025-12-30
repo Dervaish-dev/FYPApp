@@ -94,7 +94,6 @@ class _EmotionsScreenState extends State<EmotionsScreen> {
               ),
             ),
           ),
-          floatingActionButton: _buildFloatingActionButton(theme),
         );
       },
     );
@@ -812,45 +811,7 @@ class _EmotionsScreenState extends State<EmotionsScreen> {
     );
   }
 
-  Widget _buildFloatingActionButton(AppTheme theme) {
-    return Container(
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(
-        color: Colors.purple,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.purple.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Center(child: Text('😘', style: const TextStyle(fontSize: 24))),
-          Positioned(
-            top: 6,
-            right: 6,
-            child: Container(
-              width: 16,
-              height: 16,
-              decoration: const BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.priority_high,
-                color: Colors.white,
-                size: 12,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Future<void> _pickImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);

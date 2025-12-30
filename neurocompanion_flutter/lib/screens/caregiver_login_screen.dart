@@ -6,6 +6,8 @@ import 'package:neurocompanion_flutter/services/api_config.dart';
 import 'package:neurocompanion_flutter/services/token_store.dart';
 import 'package:neurocompanion_flutter/screens/caregiver_layout_screen.dart';
 import 'package:neurocompanion_flutter/screens/login_screen.dart';
+import 'package:neurocompanion_flutter/screens/forgot_password_screen.dart';
+import 'package:neurocompanion_flutter/widgets/theme_toggle_button.dart';
 
 class CaregiverLoginScreen extends StatefulWidget {
   const CaregiverLoginScreen({super.key});
@@ -25,8 +27,10 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
   bool _showOTP = false;
   bool _obscurePassword = true;
   bool _isRegistering = false;
+  bool _is2FA = false;
   String? _errorMessage;
   String? _userEmail;
+  String? _caregiverId;
 
   @override
   void dispose() {
@@ -67,9 +71,11 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
           setState(() {
             _showOTP = true;
             _userEmail = _emailController.text.trim();
+            _caregiverId = response['caregiverId'];
+            _is2FA = response['requires2FA'] == true;
             _isLoading = false;
           });
-          print('🔐 [CAREGIVER LOGIN] OTP required');
+          print('🔐 [CAREGIVER LOGIN] OTP required (2FA: $_is2FA)');
           return;
         }
 
@@ -135,6 +141,7 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
           setState(() {
             _showOTP = true;
             _userEmail = _emailController.text.trim();
+            _is2FA = false;
             _isLoading = false;
           });
           print('📧 [CAREGIVER REGISTER] OTP sent to email');
@@ -187,12 +194,24 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
         tokenStore: SharedPrefsTokenStore(),
       );
 
-      print('🔐 [CAREGIVER] Verifying OTP code');
+      print('🔐 [CAREGIVER] Verifying OTP code (2FA: $_is2FA)');
       
-      final response = await apiClient.post('/caregiver/verify-otp', body: {
-        'email': _userEmail,
-        'otp': _otpController.text.trim(),
-      }, authenticated: false);
+      Map<String, dynamic> response;
+      
+      if (_is2FA) {
+        if (_caregiverId == null) {
+          throw Exception('Caregiver ID missing for 2FA');
+        }
+        response = await apiClient.post('/caregiver/verify-2fa', body: {
+          'caregiverId': _caregiverId,
+          'otp': _otpController.text.trim(),
+        }, authenticated: false);
+      } else {
+        response = await apiClient.post('/caregiver/verify-otp', body: {
+          'email': _userEmail,
+          'otp': _otpController.text.trim(),
+        }, authenticated: false);
+      }
 
       print('✅ [CAREGIVER] OTP verified successfully');
 
@@ -272,113 +291,115 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
 
         return Scaffold(
           backgroundColor: theme.background,
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 60),
-
-                      // Logo
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [theme.primary, theme.secondary],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(40),
-                        ),
-                        child: const Icon(
-                          Icons.people,
-                          color: Colors.white,
-                          size: 40,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Title
-                      Text(
-                        'Caregiver Portal',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: theme.text,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _showOTP
-                            ? 'Enter the verification code sent to your email'
-                            : 'Sign in to access patient information',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: theme.text.withOpacity(0.7),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 40),
-
-                      // Login Form
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: theme.card,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: theme.border),
-                          boxShadow: [
-                            BoxShadow(
-                              color: theme.primary.withOpacity(0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: _showOTP ? _buildOTPForm(theme) : _buildLoginForm(theme),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Back to Patient Login Link
-                      Row(
+          body: Stack(
+            children: [
+              SafeArea(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+                          const SizedBox(height: 60),
+
+                          // Logo
+                          Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [theme.primary, theme.secondary],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(40),
+                            ),
+                            child: const Icon(
+                              Icons.people,
+                              color: Colors.white,
+                              size: 40,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Title
                           Text(
-                            "Not a caregiver? ",
+                            'Caregiver Portal',
                             style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: theme.text,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _showOTP
+                                ? 'Enter the verification code sent to your email'
+                                : 'Sign in to access patient information',
+                            style: TextStyle(
+                              fontSize: 16,
                               color: theme.text.withOpacity(0.7),
                             ),
+                            textAlign: TextAlign.center,
                           ),
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const LoginScreen(),
-                                ),
-                              );
-                            },
-                            child: Text(
-                              'Patient Login',
-                              style: TextStyle(
-                                color: theme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 40),
+                          const SizedBox(height: 40),
 
-                      // Footer
-                      Text(
-                        '© 2024 NeuroCompanion. Secure caregiver access portal.',
-                        style: TextStyle(
+                          // Login Form
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: theme.card,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: theme.border),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: theme.primary.withOpacity(0.1),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: _showOTP ? _buildOTPForm(theme) : _buildLoginForm(theme),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Back to Patient Login Link
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "Not a caregiver? ",
+                                style: TextStyle(
+                                  color: theme.text.withOpacity(0.7),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const LoginScreen(),
+                                    ),
+                                  );
+                                },
+                                child: Text(
+                                  'Patient Login',
+                                  style: TextStyle(
+                                    color: theme.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 40),
+
+                          // Footer
+                          Text(
+                            '© 2024 NeuroCompanion. Secure caregiver access portal.',
+                            style: TextStyle(
                           fontSize: 12,
                           color: theme.text.withOpacity(0.5),
                         ),
@@ -389,6 +410,13 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
                 ),
               ),
             ),
+          ),
+              const Positioned(
+                top: 40,
+                right: 16,
+                child: ThemeToggleButton(),
+              ),
+            ],
           ),
         );
       },
@@ -479,13 +507,36 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
               if (value == null || value.isEmpty) {
                 return 'Password is required';
               }
-              if (value.length < 6) {
+              if (_isRegistering && value.length < 6) {
                 return 'Password must be at least 6 characters';
               }
               return null;
             },
           ),
           const SizedBox(height: 16),
+
+          // Forgot Password Link
+          if (!_isRegistering)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ForgotPasswordScreen(),
+                    ),
+                  );
+                },
+                child: Text(
+                  'Forgot Password?',
+                  style: TextStyle(
+                    color: theme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
 
           // Phone Field (only for registration)
           if (_isRegistering) ...[

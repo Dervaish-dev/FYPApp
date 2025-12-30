@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:neurocompanion_flutter/bloc/bloc.dart';
+import 'package:neurocompanion_flutter/bloc/blocs.dart';
 import 'package:neurocompanion_flutter/services/token_store.dart';
 import 'package:neurocompanion_flutter/screens/login_screen.dart';
 
@@ -36,6 +39,10 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
     );
 
     if (confirmed == true) {
+      if (!mounted) return;
+      // Dispatch logout to AuthBloc to clear state
+      context.read<AuthBloc>().add(LogoutRequested());
+
       await SharedPrefsTokenStore().clearToken();
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(

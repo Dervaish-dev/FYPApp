@@ -5,6 +5,7 @@ import 'package:neurocompanion_flutter/providers/theme_provider.dart';
 import 'package:neurocompanion_flutter/bloc/bloc.dart';
 import 'package:neurocompanion_flutter/bloc/blocs.dart';
 import 'package:neurocompanion_flutter/screens/register_screen.dart';
+import 'package:neurocompanion_flutter/screens/caregiver_register_screen.dart';
 import 'package:neurocompanion_flutter/screens/main_layout.dart';
 import 'package:neurocompanion_flutter/screens/verify_2fa_screen.dart';
 import 'package:neurocompanion_flutter/screens/forgot_password_screen.dart';
@@ -12,6 +13,7 @@ import 'package:neurocompanion_flutter/screens/caregiver_login_screen.dart';
 import 'package:neurocompanion_flutter/screens/caregiver_layout_screen.dart';
 import 'package:neurocompanion_flutter/services/api_client.dart';
 import 'package:neurocompanion_flutter/services/token_store.dart';
+import 'package:neurocompanion_flutter/widgets/theme_toggle_button.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -134,69 +136,71 @@ class _LoginScreenState extends State<LoginScreen> {
 
         return Scaffold(
           backgroundColor: theme.background,
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 60),
+          body: Stack(
+            children: [
+              SafeArea(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(height: 60),
 
-                      // Logo
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [theme.primary, theme.secondary],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+                          // Logo
+                          Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [theme.primary, theme.secondary],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(40),
+                            ),
+                            child: const Icon(
+                              Icons.psychology,
+                              color: Colors.white,
+                              size: 40,
+                            ),
                           ),
-                          borderRadius: BorderRadius.circular(40),
-                        ),
-                        child: const Icon(
-                          Icons.psychology,
-                          color: Colors.white,
-                          size: 40,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
+                          const SizedBox(height: 24),
 
-                      // Title
-                      Text(
-                        'Welcome Back',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: theme.text,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _userType == 'patient'
-                            ? 'Sign in to your NeuroCompanion account'
-                            : 'Sign in to support your patients',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: theme.text.withOpacity(0.7),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 40),
+                          // Title
+                          Text(
+                            'Welcome Back',
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: theme.text,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _userType == 'patient'
+                                ? 'Sign in to your NeuroCompanion account'
+                                : 'Sign in to support your patients',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: theme.text.withOpacity(0.7),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 40),
 
-                      // User Type Selector
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: theme.card,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: theme.border),
-                        ),
-                        child: Row(
-                          children: [
+                          // User Type Selector
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: theme.card,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: theme.border),
+                            ),
+                            child: Row(
+                              children: [
                             Expanded(
                               child: GestureDetector(
                                 onTap: () {
@@ -395,21 +399,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                     if (value == null || value.isEmpty) {
                                       return 'Password is required';
                                     }
-                                    if (value.length < 8) {
-                                      return 'Password must be at least 8 characters';
-                                    }
-                                    if (!RegExp(r'[a-z]').hasMatch(value)) {
-                                      return 'Must contain at least one lowercase letter';
-                                    }
-                                    if (!RegExp(r'[A-Z]').hasMatch(value)) {
-                                      return 'Must contain at least one uppercase letter';
-                                    }
-                                    if (!RegExp(r'[0-9]').hasMatch(value)) {
-                                      return 'Must contain at least one number';
-                                    }
-                                    if (!RegExp(r'[!@#$%^&*()_+=\[\]{};:,.<>?/|\\-]').hasMatch(value)) {
-                                      return 'Must contain at least one special character';
-                                    }
                                     return null;
                                   },
                                 ),
@@ -500,10 +489,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                 );
                               } else {
                                 // Navigate to caregiver registration
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Caregiver registration - Coming soon'),
-                                    backgroundColor: theme.primary,
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const CaregiverRegisterScreen(),
                                   ),
                                 );
                               }
@@ -534,6 +523,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
+          ),
+              const Positioned(
+                top: 40,
+                right: 16,
+                child: ThemeToggleButton(),
+              ),
+            ],
           ),
         );
       },

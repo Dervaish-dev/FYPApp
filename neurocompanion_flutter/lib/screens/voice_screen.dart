@@ -142,7 +142,7 @@ class _VoiceScreenState extends State<VoiceScreen> with SingleTickerProviderStat
     }
   }
 
-  void _endVoiceJournal() {
+  Future<void> _endVoiceJournal() async {
     if (_callState != _VoiceJournalCallState.active) return;
     setState(() {
       _callState = _VoiceJournalCallState.saving;

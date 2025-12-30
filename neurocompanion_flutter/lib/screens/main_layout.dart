@@ -22,6 +22,17 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    // Trigger initial data fetch when MainLayout is loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<TaskBloc>().add(LoadTasks());
+      context.read<EmotionBloc>().add(LoadEmotions());
+      context.read<JournalBloc>().add(LoadJournalEntries());
+    });
+  }
+
   List<Widget> get _screens => [
     DashboardScreen(onNavigateToScreen: _navigateToScreen),
     const EmotionsScreen(),

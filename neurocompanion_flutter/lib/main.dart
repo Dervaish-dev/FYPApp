@@ -14,6 +14,7 @@ import 'package:neurocompanion_flutter/services/caregiver_service.dart';
 import 'package:neurocompanion_flutter/screens/login_screen.dart';
 import 'package:neurocompanion_flutter/screens/register_screen.dart';
 import 'package:neurocompanion_flutter/screens/main_layout.dart';
+import 'package:neurocompanion_flutter/screens/caregiver_layout_screen.dart';
 
 void main() {
   runApp(const NeuroCompanionApp());
@@ -30,7 +31,6 @@ class NeuroCompanionApp extends StatelessWidget {
       case 'coral':
       case 'mint':
       case 'lavender':
-      case 'golden':
         return backendTheme;
       default:
         return 'ocean';
@@ -198,6 +198,9 @@ class NeuroCompanionApp extends StatelessWidget {
             home: BlocBuilder<AuthBloc, AuthState>(
               builder: (context, state) {
                 if (state is AuthSuccess) {
+                  if (state.user.role == 'caregiver') {
+                    return const CaregiverLayoutScreen();
+                  }
                   return const MainLayout();
                 } else {
                   return const LoginScreen();
