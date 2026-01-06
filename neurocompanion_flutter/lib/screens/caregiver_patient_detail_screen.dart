@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:neurocompanion_flutter/providers/theme_provider.dart';
 import 'package:neurocompanion_flutter/services/caregiver_service.dart';
 import 'package:neurocompanion_flutter/services/api_client.dart';
@@ -24,6 +28,7 @@ class _CaregiverPatientDetailScreenState extends State<CaregiverPatientDetailScr
   Map<String, dynamic>? _patientDetail;
   Map<String, dynamic>? _processedData;
   bool _isLoading = true;
+  bool _isDownloading = false;
   String? _error;
   String _selectedTimeframe = 'week';
 
@@ -32,6 +37,62 @@ class _CaregiverPatientDetailScreenState extends State<CaregiverPatientDetailScr
     super.initState();
     _caregiverService = CaregiverService(apiClient: context.read<ApiClient>());
     _loadPatientDetail();
+  }
+
+  Future<void> _downloadReport() async {
+    if (_isDownloading) return;
+
+    setState(() {
+      _isDownloading = true;
+    });
+
+    try {
+      final patient = _patientDetail?['patient'] as Map<String, dynamic>?;
+      final patientName = (patient?['name'] as String? ?? 'Patient').replaceAll(' ', '-');
+      
+      // 1. Download bytes
+      final bytes = await _caregiverService.downloadPatientReport(widget.patientId);
+
+      // 2. Get save directory
+      final directory = await getApplicationDocumentsDirectory();
+      final fileName = 'Report-$patientName-${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final file = File('${directory.path}/$fileName');
+
+      // 3. Write file
+      await file.writeAsBytes(bytes);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Report downloaded successfully'),
+            backgroundColor: Colors.green,
+            action: SnackBarAction(
+              label: 'OPEN',
+              textColor: Colors.white,
+              onPressed: () {
+                OpenFilex.open(file.path);
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Download error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to download report: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadPatientDetail() async {
@@ -389,6 +450,24 @@ class _CaregiverPatientDetailScreenState extends State<CaregiverPatientDetailScr
             style: TextStyle(color: theme.text, fontWeight: FontWeight.bold),
           ),
           actions: [
+            // Download Report Button
+            if (!_isLoading && _error == null)
+              _isDownloading
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.only(right: 12),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  )
+                : IconButton(
+                    icon: Icon(Icons.download_rounded, color: theme.primary),
+                    tooltip: 'Download PDF Report',
+                    onPressed: _downloadReport,
+                  ),
             // Timeframe Selector
             _buildTimeframeChips(theme),
             const SizedBox(width: 8),

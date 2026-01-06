@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:neurocompanion_flutter/services/api_exceptions.dart';
@@ -137,7 +138,36 @@ class ApiClient {
     
     return _decodeOrThrow(res);
   }
-
+  Future<Uint8List> downloadFile(String path, {bool authenticated = true}) async {
+    final uri = _uri(path);
+    print('🌐 [DOWNLOAD] $uri');
+    
+    final res = await _http.get(
+      uri,
+      headers: await _headers(authenticated: authenticated),
+    );
+    
+    print('✅ [DOWNLOAD] $uri - Status: ${res.statusCode}');
+    
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return res.bodyBytes;
+    }
+    
+    // Handle error
+    dynamic decoded;
+    try {
+      decoded = res.body.isEmpty ? null : jsonDecode(res.body);
+    } catch (_) {
+      decoded = res.body;
+    }
+    
+    String message = 'Download failed';
+    if (decoded is Map<String, dynamic>) {
+      message = (decoded['message'] ?? decoded['error'] ?? message).toString();
+    }
+    
+    throw ApiException(message: message, statusCode: res.statusCode);
+  }
   Future<dynamic> postMultipart(
     String path, {
     required String fileField,

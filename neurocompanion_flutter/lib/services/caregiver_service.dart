@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:neurocompanion_flutter/services/api_client.dart';
 import 'package:neurocompanion_flutter/services/api_exceptions.dart';
 
@@ -349,5 +350,10 @@ class CaregiverService {
     }
 
     return json is Map<String, dynamic> ? json : json.cast<String, dynamic>();
+  }
+
+  /// Download patient report as PDF
+  Future<Uint8List> downloadPatientReport(String patientId) async {
+    return await _api.downloadFile('/caregiver/patient/$patientId/report', authenticated: true);
   }
 }
